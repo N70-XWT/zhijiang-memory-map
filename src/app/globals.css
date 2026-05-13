@@ -1,0 +1,137 @@
+﻿@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #0f172a;
+  color: #0f172a;
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #cbd5e1;
+}
+
+.leaflet-tile {
+  backface-visibility: hidden;
+}
+
+.activity-marker-wrapper,
+.activity-marker-wrapper.leaflet-div-icon {
+  border: 0;
+  background: transparent;
+}
+
+.activity-marker {
+  position: relative;
+  display: flex;
+  height: 56px;
+  width: 56px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 2px solid #ffffff;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 42%),
+    linear-gradient(145deg, #64748b, #334155);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  transform: scale(1) translateZ(0);
+  transition: transform 0.14s ease-out, border-color 0.14s ease-out;
+  will-change: transform;
+}
+
+.activity-marker img {
+  display: block;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.activity-marker:hover {
+  transform: scale(1.05) translateZ(0);
+}
+
+.activity-marker.selected {
+  transform: scale(1.08) translateZ(0);
+  border-color: #f59e0b;
+}
+
+.activity-marker.is-fallback img {
+  display: none;
+}
+
+.activity-marker-tooltip {
+  max-width: min(260px, calc(100vw - 32px));
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.96);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+  color: #0f172a;
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: max-content;
+}
+
+.activity-marker-tooltip.leaflet-tooltip-top::before {
+  border-top-color: rgba(248, 250, 252, 0.96);
+}
+
+.amap-activity-marker-shell {
+  position: relative;
+  display: flex;
+  height: 60px;
+  width: 60px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.amap-activity-marker-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 0.14s ease-out, transform 0.14s ease-out;
+  z-index: 1;
+}
+
+.amap-activity-marker-tooltip::before {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  height: 0;
+  width: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(248, 250, 252, 0.96);
+  content: '';
+  transform: translateX(-50%);
+}
+
+.amap-activity-marker-shell:hover .amap-activity-marker-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

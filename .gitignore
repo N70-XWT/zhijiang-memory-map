@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+dist
+coverage
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.env
+.env.*
+!.env.example
+*.log
+.playwright-mcp/
+.DS_Store
+.codex/
+.vscode/

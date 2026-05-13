@@ -1,0 +1,23 @@
+[
+  {
+    "city": "杭州",
+    "name": "SoFun Live 杭州",
+    "latitude": 30.182542,
+    "longitude": 120.294774,
+    "aliases": []
+  },
+  {
+    "city": "上海",
+    "name": "上海星临天下剧场",
+    "latitude": 31.249436,
+    "longitude": 121.483366,
+    "aliases": []
+  },
+  {
+    "city": "广州",
+    "name": "广州音乐唐人馆",
+    "latitude": 23.124656,
+    "longitude": 113.245294,
+    "aliases": []
+  }
+]

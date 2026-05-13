@@ -1,0 +1,32 @@
+[
+  {
+    "id": "event-guangzhou-001",
+    "title": "A-SOUL 梦幻奇妙夜",
+    "date": "2025-12-27",
+    "city": "广州",
+    "venue": "广州音乐唐人馆",
+    "latitude": 23.124656,
+    "longitude": 113.245294,
+    "markerThumbnail": "/mock/markers/guangzhou-001.jpeg",
+    "coverImage": "/mock/event-covers/20251227.jpeg",
+    "summary": "这是一个用于原型展示的活动数据示例，用来测试地图点位、详情面板和视频列表的布局效果。",
+    "bilibiliVideos": [
+      {
+        "id": "bv-001",
+        "title": "官方活动回顾视频示例",
+        "cover": "/mock/video-covers/bv-001.jpeg",
+        "url": "https://www.bilibili.com/video/BV19CiEBaEst/",
+        "sourceType": "official",
+        "note": "官方发布"
+      },
+      {
+        "id": "bv-002",
+        "title": "粉丝现场记录视频示例",
+        "cover": "/mock/video-covers/bv-002.jpeg",
+        "url": "https://www.bilibili.com/video/BV1WavzBqEuQ",
+        "sourceType": "fan",
+        "note": "用户投稿"
+      }
+    ]
+  }
+]

@@ -1,0 +1,89 @@
+[
+  {
+    "id": "event-hangzhou-2026-04-18",
+    "slug": "bella-2nd-solo-live",
+    "title": "在月光下加冕-贝拉单人专场线下",
+    "date": "2026-04-18", 
+    "year": 2026,
+    "city": "杭州",
+    "venue": "SoFun Live 杭州",
+    "venueAddress": "浙江省杭州市萧山区通货路918号粮仓艺术公园7号楼",
+    "latitude": 30.182542,
+    "longitude": 120.294774,
+    "markerThumbnail": "/images/activities/2026-04-18.jpg",
+    "coverImage": "/images/activities/2026-04-18.jpg",
+    "summary": "活动简短介绍。",
+    "description": "活动详细介绍。",
+    "eventType": "个人演唱会",
+    "members": ["贝拉"],
+    "tags": ["线下", "舞台互动"],
+    "bilibiliVideos": [
+      {
+        "id": "BV1dc9rB3Eih",
+        "title": "【在月光下加冕】贝拉专场线下全纪录🌙",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV1dc9rB3Eih",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
+    "id": "event-shanghai-2026-03-28",
+    "slug": "eileen-2nd-solo-live",
+    "title": "幻变梦境-乃琳单人专场线下",
+    "date": "2026-03-28", 
+    "year": 2026,
+    "city": "上海",
+    "venue": "上海星临天下剧场",
+    "venueAddress": "上海星临天下剧场",
+    "latitude": 31.249436,
+    "longitude": 121.483366,
+    "markerThumbnail": "/images/activities/2026-03-28.jpg",
+    "coverImage": "/images/activities/2026-03-28.jpg",
+    "summary": "活动简短介绍。",
+    "description": "活动详细介绍。",
+    "eventType": "个人演唱会",
+    "members": ["乃琳"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV1vo9PBuEZQ",
+        "title": "【幻变梦境】乃琳专场线下全纪录🌠",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV1vo9PBuEZQ",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+   {
+    "id": "event-guangzhou-2025-12-27",
+    "slug": "team-Dreamy-Magical-Night",
+    "title": "A-SOUL 梦幻奇妙夜-团体线下",
+    "date": "2025-12-27", 
+    "year": 2025,
+    "city": "广州",
+    "venue": "广州音乐唐人馆",
+    "venueAddress": "广州市荔湾区金花街道中山七路333号1906科技园区3号楼首层",
+    "latitude": 23.124656,
+    "longitude": 113.245294,
+    "markerThumbnail": "/images/activities/2025-12-27.jpg",
+    "coverImage": "/images/activities/2025-12-27.jpg",
+    "summary": "活动简短介绍。",
+    "description": "活动详细介绍。",
+    "eventType": "个人演唱会",
+    "members": ["乃琳","贝拉","嘉然"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV19CiEBaEst",
+        "title": "【A-SOUL梦幻奇妙夜/Dreamy Magical Night】A-SOUL12月27日广州线下全纪录",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV19CiEBaEst",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  }
+]
