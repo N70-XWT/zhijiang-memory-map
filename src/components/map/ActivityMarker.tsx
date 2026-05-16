@@ -4,16 +4,19 @@ import { memo, useMemo } from 'react'
 import type { LatLngTuple, LeafletEventHandlerFnMap } from 'leaflet'
 import { Marker, Tooltip } from 'react-leaflet'
 import { createActivityMarkerIcon } from '@/lib/map'
+import type { MarkerOffset } from '@/lib/markerLayout'
 import type { Activity } from '@/types/activity'
 
 type ActivityMarkerProps = {
   activity: Activity
+  offset: MarkerOffset
   isSelected: boolean
   onSelect: (activity: Activity) => void
 }
 
 function ActivityMarkerComponent({
   activity,
+  offset,
   isSelected,
   onSelect,
 }: ActivityMarkerProps) {
@@ -28,8 +31,9 @@ function ActivityMarkerComponent({
         thumbnail: activity.markerThumbnail,
         title: activity.title,
         isSelected: false,
+        offset,
       }),
-    [activity.markerThumbnail, activity.title]
+    [activity.markerThumbnail, activity.title, offset]
   )
 
   const selectedIcon = useMemo(
@@ -38,8 +42,9 @@ function ActivityMarkerComponent({
         thumbnail: activity.markerThumbnail,
         title: activity.title,
         isSelected: true,
+        offset,
       }),
-    [activity.markerThumbnail, activity.title]
+    [activity.markerThumbnail, activity.title, offset]
   )
 
   const eventHandlers = useMemo<LeafletEventHandlerFnMap>(
@@ -54,6 +59,11 @@ function ActivityMarkerComponent({
     [activity.date, activity.title]
   )
 
+  const tooltipOffset = useMemo<[number, number]>(
+    () => [offset.x, offset.y - 28],
+    [offset.x, offset.y]
+  )
+
   return (
     <Marker
       position={position}
@@ -62,7 +72,7 @@ function ActivityMarkerComponent({
     >
       <Tooltip
         direction="top"
-        offset={[0, -28]}
+        offset={tooltipOffset}
         opacity={1}
         className="activity-marker-tooltip"
       >
@@ -77,6 +87,8 @@ const ActivityMarker = memo(
   (prevProps, nextProps) =>
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.activity.id === nextProps.activity.id &&
+    prevProps.offset.x === nextProps.offset.x &&
+    prevProps.offset.y === nextProps.offset.y &&
     prevProps.onSelect === nextProps.onSelect
 )
 

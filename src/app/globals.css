@@ -37,6 +37,9 @@ body {
 }
 
 .activity-marker {
+  --activity-marker-offset-x: 0px;
+  --activity-marker-offset-y: 0px;
+  --activity-marker-scale: 1;
   position: relative;
   display: flex;
   height: 56px;
@@ -50,9 +53,16 @@ body {
     linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 42%),
     linear-gradient(145deg, #64748b, #334155);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
-  transform: scale(1) translateZ(0);
+  transform: translate3d(
+      var(--activity-marker-offset-x),
+      var(--activity-marker-offset-y),
+      0
+    )
+    scale(var(--activity-marker-scale));
   transition: transform 0.14s ease-out, border-color 0.14s ease-out;
   will-change: transform;
+  backface-visibility: hidden;
+  contain: layout paint;
 }
 
 .activity-marker img {
@@ -63,11 +73,11 @@ body {
 }
 
 .activity-marker:hover {
-  transform: scale(1.05) translateZ(0);
+  --activity-marker-scale: 1.05;
 }
 
 .activity-marker.selected {
-  transform: scale(1.08) translateZ(0);
+  --activity-marker-scale: 1.08;
   border-color: #f59e0b;
 }
 
@@ -105,6 +115,9 @@ body {
   cursor: pointer;
   align-items: center;
   justify-content: center;
+  contain: layout paint;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .amap-activity-marker-tooltip {
@@ -134,4 +147,35 @@ body {
 .amap-activity-marker-shell:hover .amap-activity-marker-tooltip {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .amap-activity-marker-tooltip {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .activity-marker {
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.22);
+  }
+
+  .backdrop-blur-md {
+    --tw-backdrop-blur: blur(6px);
+    -webkit-backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness)
+      var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate)
+      var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate)
+      var(--tw-backdrop-sepia);
+    backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness)
+      var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate)
+      var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate)
+      var(--tw-backdrop-sepia);
+  }
+
+  .shadow-panel {
+    --tw-shadow: 0 12px 24px rgba(15, 23, 42, 0.28);
+    --tw-shadow-colored: 0 12px 24px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+      var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
 }

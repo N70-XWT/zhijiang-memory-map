@@ -12,11 +12,11 @@
     "longitude": 120.294774,
     "markerThumbnail": "/images/activities/2026-04-18.jpg",
     "coverImage": "/images/activities/2026-04-18.jpg",
-    "summary": "活动简短介绍。",
+    "summary": "在虚实交织的夜色中，光正漫溢，她被无垠的星尘轻轻包围。🌙\n进入专属于A-SOUL贝拉的「在月光下加冕」，在银色音符铺成的阶梯上，见证梦想加身的璀璨瞬间凝结成永恒闪耀的王冠，与永不落幕的加冕之礼。👑",
     "description": "活动详细介绍。",
     "eventType": "个人演唱会",
     "members": ["贝拉"],
-    "tags": ["线下", "舞台互动"],
+    "tags": ["线下"],
     "bilibiliVideos": [
       {
         "id": "BV1dc9rB3Eih",
@@ -36,12 +36,12 @@
     "year": 2026,
     "city": "上海",
     "venue": "上海星临天下剧场",
-    "venueAddress": "上海星临天下剧场",
+    "venueAddress": "上海市虹口区四川北路939弄滨港商业中心6层",
     "latitude": 31.249436,
     "longitude": 121.483366,
     "markerThumbnail": "/images/activities/2026-03-28.jpg",
     "coverImage": "/images/activities/2026-03-28.jpg",
-    "summary": "活动简短介绍。",
+    "summary": "在虚实交织的潮汐中，梦正缓缓舒展。它由变幻的光影织就，被无垠的星群浸染。🌌\n进入专属于A-SOUL乃琳的「幻变梦境」，在月光铺成的阶梯上，踏上探索梦境无限可能的旅程。让每一缕爱的微光，在此凝结成永不落幕的剧场。",
     "description": "活动详细介绍。",
     "eventType": "个人演唱会",
     "members": ["乃琳"],
@@ -57,9 +57,9 @@
       }
     ]
   },
-   {
+  {
     "id": "event-guangzhou-2025-12-27",
-    "slug": "team-Dreamy-Magical-Night",
+    "slug": "asoul-Dreamy-Magical-Night",
     "title": "A-SOUL 梦幻奇妙夜-团体线下",
     "date": "2025-12-27", 
     "year": 2025,
@@ -70,9 +70,9 @@
     "longitude": 113.245294,
     "markerThumbnail": "/images/activities/2025-12-27.jpg",
     "coverImage": "/images/activities/2025-12-27.jpg",
-    "summary": "活动简短介绍。",
+    "summary": "拍卖清单 · 今夜竞标品↓\n限量盲盒：沉浸式的故事\n▌ 压轴孤品：造型各异的A-SOUL玩偶\n\n⚠️ 请务必携带以下入场资质：\n1.与A-SOUL的珍贵回忆\n2.能接住高音的肺活量\n3.愿意与A-SOUL一起舞动的勇气\n\n入场券获取时间：2025月12日9日 12:00\n拍卖会举行时间：2025月12日27日\n拍卖行地址：[广州·音乐唐人馆]",
     "description": "活动详细介绍。",
-    "eventType": "个人演唱会",
+    "eventType": "团体演唱会",
     "members": ["乃琳","贝拉","嘉然"],
     "tags": ["线下"],
     "bilibiliVideos": [
@@ -81,6 +81,209 @@
         "title": "【A-SOUL梦幻奇妙夜/Dreamy Magical Night】A-SOUL12月27日广州线下全纪录",
         "cover": "",
         "url": "https://www.bilibili.com/video/BV19CiEBaEst",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
+    "id": "event-hangzhou-2025-11-02",
+    "slug": "eileen-Ethereal-Echo-Floating-City",
+    "title": "幻响浮城-乃琳专场线下演唱会",
+    "date": "2025-11-02", 
+    "year": 2025,
+    "city": "杭州",
+    "venue": "SoFun Live 杭州",
+    "venueAddress": "浙江省杭州市萧山区通货路918号粮仓艺术公园7号楼",
+    "latitude": 30.182542,
+    "longitude": 120.294774,
+    "markerThumbnail": "/images/activities/2025-11-02.png",
+    "coverImage": "/images/activities/2025-11-02.png",
+    "summary": "一望无际的思绪之海上，由声音与想象构筑的城池正悄然浮现。它由旋律的砖瓦砌成，被情感的星光照亮。🌃在专属于A-SOUL乃琳的「幻响浮城」中探寻那些藏于心底的、关于爱与孤独、勇敢与温柔的共鸣吧！",
+    "description": "活动详细介绍。",
+    "eventType": "个人演唱会",
+    "members": ["乃琳"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV1yekrB8EXb",
+        "title": "【幻响浮城】乃琳专场线下全纪录 ☽",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV1yekrB8EXb",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
+    "id": "event-guangzhou-2025-09-14",
+    "slug": "bella-Interlaced-Stage",
+    "title": "时墟交错舞台-贝拉个人专场演唱会",
+    "date": "2025-09-14", 
+    "year": 2025,
+    "city": "广州",
+    "venue": "广州 太空间Livehouse",
+    "venueAddress": "广东省广州市海珠区革新路124号太古仓码头5仓101号房",
+    "latitude": 23.089024,
+    "longitude": 113.252576,
+    "markerThumbnail": "/images/activities/2025-09-14.png",
+    "coverImage": "/images/activities/2025-09-14.png",
+    "summary": "时空交错，在丝缕缠绕的迷雾中，是谁的身影站在舞台的尽头？在这里，过去、现在、未来不再泾渭分明，记忆的碎片与未来的幻影在此刻激烈碰撞、交错共生！🔴⚫️在属于A-SOUL贝拉的「时墟交错舞台」中打破次元感受来自贝拉的无限魅力！",
+    "description": "活动详细介绍。",
+    "eventType": "个人演唱会",
+    "members": ["贝拉"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV14HngzrEY5",
+        "title": "【时墟交错舞台】贝拉专场线下全纪录★",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV14HngzrEY5",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
+    "id": "event-shanghai-2025-08-24",
+    "slug": "diana-Happy-World",
+    "title": "HAPPY WORLD-嘉然专场线下演唱会",
+    "date": "2025-08-24", 
+    "year": 2025,
+    "city": "上海",
+    "venue": "上海星临天下剧场",
+    "venueAddress": "上海市虹口区四川北路939弄滨港商业中心6层",
+    "latitude": 31.249436,
+    "longitude": 121.483366,
+    "markerThumbnail": "/images/activities/2025-08-24.jpg",
+    "coverImage": "/images/activities/2025-08-24.jpg",
+    "summary": "D0307快乐号航班即将前往HAPPY WORLD，小然将化身导航员与大家畅游HAPPY WORLD！✈️属于A-SOUL嘉然的梦幻舞台即将在盛夏璀璨开启！在【HAPPY WORLD】中触发一次突破次元壁的甜蜜奇遇吧~🍬 ",
+    "description": "活动详细介绍。",
+    "eventType": "个人演唱会",
+    "members": ["嘉然"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV1yianzcEyC",
+        "title": "【HAPPY WORLD】嘉然专场线下全纪录❤",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV1yianzcEyC",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
+    "id": "event-shanghai-2025-05-24",
+    "slug": "Summer-Magic-Time-shanghai",
+    "title": "A-SOUL 魔法时间-夏日线下演唱会-上海站",
+    "date": "2025-05-24", 
+    "year": 2025,
+    "city": "上海",
+    "venue": "上海万代南梦宫上海文化中心梦想剧场",
+    "venueAddress": "上海市宜昌路179号1F",
+    "latitude": 31.248806,
+    "longitude": 121.440001,
+    "markerThumbnail": "/images/activities/2025-05-24.jpg",
+    "coverImage": "/images/activities/2025-05-24.jpg",
+    "summary": "🔮大声喊出“沸腾期待”这句咒语，和A-SOUL一起进入奇幻的魔法世界吧！\n2025 A-SOUL全新主题演出⌈A-SOUL魔法时间⌋正式开启，歌声和舞蹈成为连接彼此的载体，在与A-SOUL共处的⌈魔法时间⌋里，烦恼清零放声呐喊吧~chapter 1夏日 等待大家的光临🔛 ",
+    "description": "活动详细介绍。",
+    "eventType": "团体演唱会",
+    "members": ["乃琳","贝拉","嘉然"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV18SjmzGEDw",
+        "title": "【A-SOUL魔法时间-夏日】四地感受快乐魔法~",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV18SjmzGEDw",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
+    "id": "event-beijing-2025-05-24",
+    "slug": "Summer-Magic-Time-beijing",
+    "title": "A-SOUL 魔法时间-夏日线下演唱会-北京站",
+    "date": "2025-05-24", 
+    "year": 2025,
+    "city": "北京",
+    "venue": "北京 本土王牌LIVE",
+    "venueAddress": "北京市朝阳区东五环平房桥北京电影学院文创园内（南门）",
+    "latitude": 39.905368,
+    "longitude": 116.53811,
+    "markerThumbnail": "/images/activities/2025-05-24.jpg",
+    "coverImage": "/images/activities/2025-05-24.jpg",
+    "summary": "🔮大声喊出“沸腾期待”这句咒语，和A-SOUL一起进入奇幻的魔法世界吧！\n2025 A-SOUL全新主题演出⌈A-SOUL魔法时间⌋正式开启，歌声和舞蹈成为连接彼此的载体，在与A-SOUL共处的⌈魔法时间⌋里，烦恼清零放声呐喊吧~chapter 1夏日 等待大家的光临🔛 ",
+    "description": "活动详细介绍。",
+    "eventType": "团体演唱会",
+    "members": ["乃琳","贝拉","嘉然"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV18SjmzGEDw",
+        "title": "【A-SOUL魔法时间-夏日】四地感受快乐魔法~",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV18SjmzGEDw",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
+    "id": "event-guangzhou-2025-05-24",
+    "slug": "Summer-Magic-Time-guangzhou",
+    "title": "A-SOUL 魔法时间-夏日线下演唱会-广州站",
+    "date": "2025-05-24", 
+    "year": 2025,
+    "city": "广州",
+    "venue": "广州 媒棚LIVE",
+    "venueAddress": "广州市海珠区新港东路磨碟沙大街118号8栋",
+    "latitude": 23.107149,
+    "longitude": 113.339137,
+    "markerThumbnail": "/images/activities/2025-05-24.jpg",
+    "coverImage": "/images/activities/2025-05-24.jpg",
+    "summary": "🔮大声喊出“沸腾期待”这句咒语，和A-SOUL一起进入奇幻的魔法世界吧！\n2025 A-SOUL全新主题演出⌈A-SOUL魔法时间⌋正式开启，歌声和舞蹈成为连接彼此的载体，在与A-SOUL共处的⌈魔法时间⌋里，烦恼清零放声呐喊吧~chapter 1夏日 等待大家的光临🔛 ",
+    "description": "活动详细介绍。",
+    "eventType": "团体演唱会",
+    "members": ["乃琳","贝拉","嘉然"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV18SjmzGEDw",
+        "title": "【A-SOUL魔法时间-夏日】四地感受快乐魔法~",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV18SjmzGEDw",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
+    "id": "event-chengdu-2025-05-24",
+    "slug": "Summer-Magic-Time-chengdu",
+    "title": "A-SOUL 魔法时间-夏日线下演唱会-成都站",
+    "date": "2025-05-24", 
+    "year": 2025,
+    "city": "成都",
+    "venue": "福馆 Full House成都",
+    "venueAddress": "四川省成都市成华区东郊记忆1号楼",
+    "latitude": 30.669345,
+    "longitude": 104.121758,
+    "markerThumbnail": "/images/activities/2025-05-24.jpg",
+    "coverImage": "/images/activities/2025-05-24.jpg",
+    "summary": "🔮大声喊出“沸腾期待”这句咒语，和A-SOUL一起进入奇幻的魔法世界吧！\n2025 A-SOUL全新主题演出⌈A-SOUL魔法时间⌋正式开启，歌声和舞蹈成为连接彼此的载体，在与A-SOUL共处的⌈魔法时间⌋里，烦恼清零放声呐喊吧~chapter 1夏日 等待大家的光临🔛 ",
+    "description": "活动详细介绍。",
+    "eventType": "团体演唱会",
+    "members": ["乃琳","贝拉","嘉然"],
+    "tags": ["线下"],
+    "bilibiliVideos": [
+      {
+        "id": "BV18SjmzGEDw",
+        "title": "【A-SOUL魔法时间-夏日】四地感受快乐魔法~",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV18SjmzGEDw",
         "sourceType": "official",
         "note": "官方记录视频"
       }

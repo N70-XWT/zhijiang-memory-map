@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "crawl:activities": "node scripts/crawl-bilibili-activities.mjs",
+    "warm:related-videos": "node scripts/warm-related-videos.mjs",
     "validate:activities": "node scripts/validate-confirmed-activities.mjs"
   },
   "dependencies": {

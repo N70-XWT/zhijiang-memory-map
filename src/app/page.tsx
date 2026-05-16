@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import dynamic from 'next/dynamic'
+import FeedbackContactLink from '@/components/common/FeedbackContactLink'
 import { getAllActivities } from '@/data/activityRepository'
 
 const FullscreenMap = dynamic(() => import('@/components/map/FullscreenMap'), {
@@ -23,6 +24,7 @@ export default function HomePage() {
         </div>
       </div>
 
+      <FeedbackContactLink />
       <FullscreenMap activities={activities} />
     </main>
   )

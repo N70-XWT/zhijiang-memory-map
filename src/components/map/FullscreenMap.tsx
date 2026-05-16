@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet'
 import ActivityFilterBar from '@/components/filters/ActivityFilterBar'
@@ -17,6 +17,7 @@ import {
   TILE_LAYER_MAX_NATIVE_ZOOM,
   TILE_LAYER_URL,
 } from '@/lib/map'
+import { layoutActivityMarkers } from '@/lib/markerLayout'
 import type { Activity } from '@/types/activity'
 import ActivityMarker from './ActivityMarker'
 import AmapViewport from './AmapViewport'
@@ -114,6 +115,8 @@ const MapViewport = memo(function MapViewport({
   selectedActivityId,
   onSelect,
 }: MapViewportProps) {
+  const markerLayouts = useMemo(() => layoutActivityMarkers(activities), [activities])
+
   return (
     <MapContainer
       center={CHINA_MAP_CENTER}
@@ -146,10 +149,11 @@ const MapViewport = memo(function MapViewport({
       />
       <ZoomControl position="bottomright" />
 
-      {activities.map((activity) => (
+      {markerLayouts.map(({ activity, offset }) => (
         <ActivityMarker
           key={activity.id}
           activity={activity}
+          offset={offset}
           isSelected={selectedActivityId === activity.id}
           onSelect={onSelect}
         />
@@ -178,6 +182,7 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
   const [isActivityListOpen, setIsActivityListOpen] = useState(false)
   const [fitAllRequest, setFitAllRequest] = useState(0)
   const [focusSelectedRequest, setFocusSelectedRequest] = useState(0)
+  const activityQueryFrameRef = useRef<number | null>(null)
 
   const selectedActivityId = useMemo(() => selectedActivity?.id ?? null, [selectedActivity])
 
@@ -299,15 +304,35 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
 
   const updateActivityQuery = useCallback(
     (activityId: string | null) => {
-      replaceQuery((params) => {
-        if (activityId) {
-          params.set('activity', activityId)
-          return
-        }
-        params.delete('activity')
+      if (activityQueryFrameRef.current !== null) {
+        window.cancelAnimationFrame(activityQueryFrameRef.current)
+      }
+
+      activityQueryFrameRef.current = window.requestAnimationFrame(() => {
+        activityQueryFrameRef.current = null
+
+        startTransition(() => {
+          replaceQuery((params) => {
+            if (activityId) {
+              params.set('activity', activityId)
+              return
+            }
+            params.delete('activity')
+          })
+        })
       })
     },
     [replaceQuery]
+  )
+
+  useEffect(
+    () => () => {
+      if (activityQueryFrameRef.current !== null) {
+        window.cancelAnimationFrame(activityQueryFrameRef.current)
+        activityQueryFrameRef.current = null
+      }
+    },
+    []
   )
 
   const handleSelectActivity = useCallback(

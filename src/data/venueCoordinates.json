@@ -19,5 +19,40 @@
     "latitude": 23.124656,
     "longitude": 113.245294,
     "aliases": []
+  },
+  {
+    "city": "广州",
+    "name": "广州 太空间Livehouse",
+    "latitude": 23.089024,
+    "longitude": 113.252576,
+    "aliases": []
+  },
+  {
+    "city": "上海",
+    "name": "上海万代南梦宫上海文化中心梦想剧场",
+    "latitude": 31.248806,
+    "longitude": 121.440001,
+    "aliases": []
+  },
+  {
+    "city": "北京",
+    "name": "北京 本土王牌LIVE",
+    "latitude": 39.905368,
+    "longitude": 116.53811,
+    "aliases": []
+  },
+  {
+    "city": "广州",
+    "name": "广州 媒棚LIVE",
+    "latitude": 23.107149,
+    "longitude": 113.339137,
+    "aliases": []
+  },
+  {
+    "city": "成都",
+    "name": "福馆 Full House成都",
+    "latitude": 30.669345,
+    "longitude": 104.121758,
+    "aliases": []
   }
 ]

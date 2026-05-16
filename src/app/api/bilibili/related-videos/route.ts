@@ -1,28 +1,40 @@
-import { findRelatedBilibiliVideos } from '@/lib/bilibili'
+import {
+  findRelatedBilibiliVideos,
+  generateRelatedBilibiliVideoList,
+  type RelatedBilibiliVideoPage,
+} from '@/lib/bilibili'
 import { getActivityById } from '@/data/activityRepository'
+import {
+  acquireRefreshLock,
+  getCachedRelatedVideos,
+  releaseRefreshLock,
+  setCachedRelatedVideos,
+  type RelatedVideoCacheEntry,
+} from '@/lib/relatedVideoCache'
+import type { BilibiliVideo } from '@/types/activity'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-
-type RelatedVideosPayload = Awaited<ReturnType<typeof findRelatedBilibiliVideos>>
-
-type CachedResponse = {
-  expiresAt: number
-  payload: RelatedVideosPayload
-}
 
 type RateLimitBucket = {
   count: number
   resetAt: number
 }
 
-const CACHE_TTL_MS = 1000 * 60 * 60 * 24
+const FRESH_CACHE_TTL_MS = 1000 * 60 * 60 * 24
+const STALE_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 14
 const RATE_LIMIT_WINDOW_MS = 1000 * 60
 const RATE_LIMIT_MAX_REQUESTS = 30
-const MAX_RELATED_VIDEO_PAGE = 3
+const MAX_RELATED_VIDEO_PAGE = 6
+const RECOMMEND_PAGE_SIZE = 8
+const RELATED_VIDEO_ALGORITHM_VERSION = 'v8'
+const CACHE_WAIT_RETRY_COUNT = 8
+const CACHE_WAIT_RETRY_MS = 250
 
-const responseCache = new Map<string, CachedResponse>()
 const rateLimitBuckets = new Map<string, RateLimitBucket>()
+
+const sleep = (durationMs: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, durationMs))
 
 const getClientKey = (request: Request): string => {
   const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -45,27 +57,149 @@ const isRateLimited = (clientKey: string): boolean => {
   return current.count > RATE_LIMIT_MAX_REQUESTS
 }
 
-const getCacheKey = (activityId: string, page: number, exclude: string): string =>
-  `${activityId}:${page}:${exclude}`
+const isAuthorizedRefresh = (request: Request, searchParams: URLSearchParams): boolean => {
+  const secret = process.env.CACHE_WARM_SECRET?.trim()
+  if (!secret) {
+    return false
+  }
 
-const jsonWithCacheHeaders = (payload: RelatedVideosPayload) =>
+  return (
+    searchParams.get('secret') === secret ||
+    request.headers.get('x-cache-warm-secret') === secret
+  )
+}
+
+const getVideoKey = (video: BilibiliVideo): string => video.id || video.url
+
+const toPagedPayload = (
+  videos: BilibiliVideo[],
+  page: number,
+  excludedBvids: Set<string>
+): RelatedBilibiliVideoPage => {
+  const startIndex = (page - 1) * RECOMMEND_PAGE_SIZE
+  const selected: BilibiliVideo[] = []
+  let cursor = startIndex
+
+  while (cursor < videos.length && selected.length < RECOMMEND_PAGE_SIZE) {
+    const video = videos[cursor]
+    if (video && !excludedBvids.has(getVideoKey(video))) {
+      selected.push(video)
+    }
+    cursor += 1
+  }
+
+  const hasMore = videos
+    .slice(cursor)
+    .some((video) => !excludedBvids.has(getVideoKey(video)))
+
+  return {
+    videos: selected,
+    hasMore,
+    nextPage: hasMore ? page + 1 : null,
+  }
+}
+
+const jsonWithCacheHeaders = (
+  payload: RelatedBilibiliVideoPage,
+  cacheState: 'fresh' | 'stale' | 'miss' | 'debug' | 'error'
+) =>
   Response.json(payload, {
     headers: {
       'Cache-Control': 's-maxage=86400, stale-while-revalidate=604800',
+      'X-Related-Video-Algorithm': RELATED_VIDEO_ALGORITHM_VERSION,
+      'X-Related-Video-Cache': cacheState,
     },
   })
+
+const createCacheEntry = (
+  activityId: string,
+  videos: BilibiliVideo[],
+  error?: string
+): RelatedVideoCacheEntry => {
+  const generatedAt = Date.now()
+  return {
+    activityId,
+    algorithmVersion: RELATED_VIDEO_ALGORITHM_VERSION,
+    videos,
+    generatedAt,
+    expiresAt: generatedAt + FRESH_CACHE_TTL_MS,
+    staleUntil: generatedAt + STALE_CACHE_TTL_MS,
+    error,
+  }
+}
+
+const refreshActivityCache = async (
+  activityId: string,
+  pageLimit = MAX_RELATED_VIDEO_PAGE
+): Promise<RelatedVideoCacheEntry> => {
+  const activity = getActivityById(activityId)
+  if (!activity) {
+    throw new Error('Activity not found.')
+  }
+
+  const result = await generateRelatedBilibiliVideoList(activity, pageLimit)
+  const entry = createCacheEntry(activityId, result.videos)
+  await setCachedRelatedVideos(entry)
+  return entry
+}
+
+const triggerBackgroundRefresh = async (activityId: string): Promise<void> => {
+  const locked = await acquireRefreshLock(activityId, RELATED_VIDEO_ALGORITHM_VERSION)
+  if (!locked) {
+    return
+  }
+
+  void refreshActivityCache(activityId)
+    .catch(async (error) => {
+      const cached = await getCachedRelatedVideos(activityId, RELATED_VIDEO_ALGORITHM_VERSION)
+      if (!cached) {
+        return
+      }
+
+      await setCachedRelatedVideos({
+        ...cached.entry,
+        error: error instanceof Error ? error.message : 'Failed to refresh related videos.',
+      })
+    })
+    .finally(() => {
+      void releaseRefreshLock(activityId, RELATED_VIDEO_ALGORITHM_VERSION)
+    })
+}
+
+const waitForGeneratedCache = async (
+  activityId: string
+): Promise<Awaited<ReturnType<typeof getCachedRelatedVideos>>> => {
+  for (let attempt = 0; attempt < CACHE_WAIT_RETRY_COUNT; attempt += 1) {
+    await sleep(CACHE_WAIT_RETRY_MS)
+    const cached = await getCachedRelatedVideos(activityId, RELATED_VIDEO_ALGORITHM_VERSION)
+    if (cached) {
+      return cached
+    }
+  }
+
+  return null
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const activityId = searchParams.get('activityId')?.trim()
   const rawPage = Number.parseInt(searchParams.get('page') ?? '1', 10)
   const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1
+  const rawWarmPageLimit = Number.parseInt(
+    searchParams.get('warmPageLimit') ?? String(MAX_RELATED_VIDEO_PAGE),
+    10
+  )
+  const warmPageLimit =
+    Number.isFinite(rawWarmPageLimit) && rawWarmPageLimit > 0
+      ? Math.min(rawWarmPageLimit, MAX_RELATED_VIDEO_PAGE)
+      : MAX_RELATED_VIDEO_PAGE
   const debug = searchParams.get('debug') === '1' && process.env.NODE_ENV !== 'production'
+  const forceRefresh = searchParams.get('refresh') === '1'
   const rawExclude = searchParams.get('exclude') ?? ''
   const excludedBvidList = rawExclude
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean)
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
   const excludedBvids = new Set(excludedBvidList)
 
   if (!activityId) {
@@ -84,11 +218,23 @@ export async function GET(request: Request) {
   }
 
   if (page > MAX_RELATED_VIDEO_PAGE) {
-    return Response.json({ videos: [], hasMore: false, nextPage: null })
+    return jsonWithCacheHeaders({ videos: [], hasMore: false, nextPage: null }, 'miss')
+  }
+
+  if (forceRefresh && !isAuthorizedRefresh(request, searchParams)) {
+    return Response.json(
+      { error: 'Unauthorized cache refresh.', videos: [], hasMore: false, nextPage: null },
+      { status: 401 }
+    )
   }
 
   const clientKey = getClientKey(request)
-  if (!debug && isRateLimited(clientKey)) {
+  if (!debug && !forceRefresh && isRateLimited(clientKey)) {
+    const cached = await getCachedRelatedVideos(activityId, RELATED_VIDEO_ALGORITHM_VERSION)
+    if (cached) {
+      return jsonWithCacheHeaders(toPagedPayload(cached.entry.videos, page, excludedBvids), cached.state)
+    }
+
     return Response.json(
       {
         error: 'Too many related video requests. Please try again later.',
@@ -100,30 +246,72 @@ export async function GET(request: Request) {
     )
   }
 
-  const cacheKey = getCacheKey(activityId, page, excludedBvidList.sort().join(','))
-  const cached = responseCache.get(cacheKey)
-  if (!debug && cached && cached.expiresAt > Date.now()) {
-    return jsonWithCacheHeaders(cached.payload)
+  if (debug) {
+    try {
+      const result = await findRelatedBilibiliVideos(activity, page, excludedBvids, { debug })
+      return jsonWithCacheHeaders(result, 'debug')
+    } catch (error) {
+      return jsonWithCacheHeaders(
+        {
+          error: error instanceof Error ? error.message : 'Failed to fetch related videos.',
+          videos: [],
+          hasMore: false,
+          nextPage: null,
+        },
+        'error'
+      )
+    }
+  }
+
+  const cached = await getCachedRelatedVideos(activityId, RELATED_VIDEO_ALGORITHM_VERSION)
+  if (cached && cached.state === 'fresh' && !forceRefresh) {
+    return jsonWithCacheHeaders(toPagedPayload(cached.entry.videos, page, excludedBvids), 'fresh')
+  }
+
+  if (cached && cached.state === 'stale' && !forceRefresh) {
+    await triggerBackgroundRefresh(activityId)
+    return jsonWithCacheHeaders(toPagedPayload(cached.entry.videos, page, excludedBvids), 'stale')
+  }
+
+  const locked = await acquireRefreshLock(activityId, RELATED_VIDEO_ALGORITHM_VERSION)
+  if (!locked) {
+    const generated = await waitForGeneratedCache(activityId)
+    if (generated) {
+      return jsonWithCacheHeaders(
+        toPagedPayload(generated.entry.videos, page, excludedBvids),
+        generated.state
+      )
+    }
+
+    if (cached) {
+      return jsonWithCacheHeaders(toPagedPayload(cached.entry.videos, page, excludedBvids), cached.state)
+    }
+
+    return jsonWithCacheHeaders({ videos: [], hasMore: false, nextPage: null }, 'miss')
   }
 
   try {
-    const result = await findRelatedBilibiliVideos(activity, page, excludedBvids, { debug })
-    if (!debug) {
-      responseCache.set(cacheKey, {
-        expiresAt: Date.now() + CACHE_TTL_MS,
-        payload: result,
-      })
-    }
-    return jsonWithCacheHeaders(result)
+    const entry = await refreshActivityCache(activityId, warmPageLimit)
+    return jsonWithCacheHeaders(toPagedPayload(entry.videos, page, excludedBvids), 'fresh')
   } catch (error) {
-    return Response.json(
+    if (cached) {
+      await setCachedRelatedVideos({
+        ...cached.entry,
+        error: error instanceof Error ? error.message : 'Failed to refresh related videos.',
+      })
+      return jsonWithCacheHeaders(toPagedPayload(cached.entry.videos, page, excludedBvids), cached.state)
+    }
+
+    return jsonWithCacheHeaders(
       {
         error: error instanceof Error ? error.message : 'Failed to fetch related videos.',
         videos: [],
         hasMore: false,
         nextPage: null,
       },
-      { status: 200 }
+      'error'
     )
+  } finally {
+    await releaseRefreshLock(activityId, RELATED_VIDEO_ALGORITHM_VERSION)
   }
 }

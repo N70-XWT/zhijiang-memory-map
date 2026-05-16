@@ -26,7 +26,10 @@ type LoadingNoticeProps = {
   label: string
 }
 
-const getCacheKey = (activityId: string): string => `bilibili-related-videos:v3:${activityId}`
+const RELATED_VIDEO_CACHE_VERSION = 'v8'
+
+const getCacheKey = (activityId: string): string =>
+  `bilibili-related-videos:${RELATED_VIDEO_CACHE_VERSION}:${activityId}`
 
 const getCachedRelatedState = (activityId: string): CachedRelatedVideos | null => {
   try {
@@ -109,6 +112,7 @@ export default function RelatedVideoSection({ activity, variant }: RelatedVideoS
       const params = new URLSearchParams({
         activityId: activity.id,
         page: String(page),
+        algo: RELATED_VIDEO_CACHE_VERSION,
       })
       if (exclude) {
         params.set('exclude', exclude)

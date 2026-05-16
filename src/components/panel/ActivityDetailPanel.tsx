@@ -11,12 +11,58 @@ type ActivityDetailPanelProps = {
   onClose: () => void
 }
 
-function DetailContent({ activity }: { activity: Activity }) {
+const DESKTOP_VIEWPORT_QUERY = '(min-width: 768px)'
+const RELATED_VIDEO_MOUNT_DELAY_MS = 320
+
+function useDesktopViewport() {
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
+    typeof window === 'undefined' ? true : window.matchMedia(DESKTOP_VIEWPORT_QUERY).matches
+  )
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(DESKTOP_VIEWPORT_QUERY)
+    const updateViewport = () => setIsDesktopViewport(mediaQuery.matches)
+
+    updateViewport()
+    mediaQuery.addEventListener('change', updateViewport)
+    return () => {
+      mediaQuery.removeEventListener('change', updateViewport)
+    }
+  }, [])
+
+  return isDesktopViewport
+}
+
+function DetailContent({
+  activity,
+  isOpen,
+  shouldLoadVideos,
+}: {
+  activity: Activity
+  isOpen: boolean
+  shouldLoadVideos: boolean
+}) {
   const [coverLoadFailed, setCoverLoadFailed] = useState(false)
+  const [canRenderVideos, setCanRenderVideos] = useState(false)
 
   useEffect(() => {
     setCoverLoadFailed(false)
   }, [activity.coverImage])
+
+  useEffect(() => {
+    if (!isOpen || !shouldLoadVideos) {
+      setCanRenderVideos(false)
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCanRenderVideos(true)
+    }, RELATED_VIDEO_MOUNT_DELAY_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [activity.id, isOpen, shouldLoadVideos])
 
   const metaTags = useMemo(
     () => [activity.eventType, `${activity.year} 年`, ...activity.tags.slice(0, 2)],
@@ -78,7 +124,14 @@ function DetailContent({ activity }: { activity: Activity }) {
         <p className="text-sm leading-6 text-slate-700">{activity.summary}</p>
       </div>
 
-      <RelatedVideoSection activity={activity} variant="panel" />
+      {canRenderVideos ? (
+        <RelatedVideoSection activity={activity} variant="panel" />
+      ) : (
+        <div
+          className="h-24 animate-pulse rounded-lg border border-slate-200 bg-white/80"
+          aria-hidden="true"
+        />
+      )}
     </div>
   )
 }
@@ -89,6 +142,7 @@ export default function ActivityDetailPanel({
   onClose,
 }: ActivityDetailPanelProps) {
   const isVisible = Boolean(activity) && isOpen
+  const isDesktopViewport = useDesktopViewport()
 
   return (
     <>
@@ -102,7 +156,7 @@ export default function ActivityDetailPanel({
       ) : null}
 
       <aside
-        className={`absolute left-0 top-0 z-[400] hidden h-full w-full max-w-[420px] transform border-r border-slate-300/90 bg-slate-50/95 shadow-panel backdrop-blur-md transition-transform duration-300 md:block ${
+        className={`absolute left-0 top-0 z-[400] hidden h-full w-full max-w-[420px] transform border-r border-slate-300/90 bg-slate-50/95 shadow-panel backdrop-blur-md transition-transform duration-300 will-change-transform [contain:layout_paint] md:block ${
           isVisible ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -119,8 +173,12 @@ export default function ActivityDetailPanel({
             </button>
           </header>
 
-          {activity ? (
-            <DetailContent activity={activity} />
+          {activity && isDesktopViewport ? (
+            <DetailContent
+              activity={activity}
+              isOpen={isVisible}
+              shouldLoadVideos={isDesktopViewport}
+            />
           ) : (
             <div className="flex h-full items-center justify-center px-4 text-sm text-slate-600">
               点击地图上的活动缩略图查看详情
@@ -130,7 +188,7 @@ export default function ActivityDetailPanel({
       </aside>
 
       <aside
-        className={`absolute inset-x-0 bottom-0 z-[400] max-h-[62vh] transform rounded-t-2xl border border-slate-300/90 bg-slate-50/95 shadow-panel backdrop-blur-md transition-transform duration-300 md:hidden ${
+        className={`absolute inset-x-0 bottom-0 z-[400] max-h-[62vh] transform rounded-t-2xl border border-slate-300/90 bg-slate-50/95 shadow-panel backdrop-blur-md transition-transform duration-300 will-change-transform [contain:layout_paint] md:hidden ${
           isVisible ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
@@ -149,8 +207,12 @@ export default function ActivityDetailPanel({
             </button>
           </header>
 
-          {activity ? (
-            <DetailContent activity={activity} />
+          {activity && !isDesktopViewport ? (
+            <DetailContent
+              activity={activity}
+              isOpen={isVisible}
+              shouldLoadVideos={!isDesktopViewport}
+            />
           ) : (
             <div className="flex h-full items-center justify-center px-4 text-sm text-slate-600">
               点击地图上的活动缩略图查看详情

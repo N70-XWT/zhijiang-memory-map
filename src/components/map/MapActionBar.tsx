@@ -28,7 +28,7 @@ export default function MapActionBar({
 }: MapActionBarProps) {
   return (
     <div
-      className={`pointer-events-none absolute right-3 z-[410] flex flex-col items-end gap-2 md:bottom-8 md:right-5 ${
+      className={`pointer-events-none absolute right-3 z-[410] flex flex-col items-end gap-2 [contain:layout_paint] md:bottom-8 md:right-5 ${
         isDetailOpen ? 'bottom-[calc(62vh+0.75rem)]' : 'bottom-5'
       }`}
     >

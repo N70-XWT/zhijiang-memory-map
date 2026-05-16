@@ -21,7 +21,7 @@ export default function ActivityResultList({
 
   return (
     <aside
-      className={`absolute inset-x-2 bottom-20 z-[405] max-h-[48vh] transform overflow-hidden rounded-2xl border border-slate-300/90 bg-slate-50/95 shadow-panel backdrop-blur-md transition-all duration-200 md:bottom-auto md:left-auto md:right-5 md:top-24 md:w-[360px] md:max-h-[calc(100vh-9rem)] ${
+      className={`absolute inset-x-2 bottom-20 z-[405] max-h-[48vh] transform overflow-hidden rounded-2xl border border-slate-300/90 bg-slate-50/95 shadow-panel backdrop-blur-md transition-all duration-200 will-change-transform [contain:layout_paint] md:bottom-auto md:left-auto md:right-5 md:top-24 md:w-[360px] md:max-h-[calc(100vh-9rem)] ${
         isOpen
           ? 'pointer-events-auto translate-y-0 opacity-100'
           : 'pointer-events-none translate-y-3 opacity-0 md:translate-y-0 md:translate-x-3'

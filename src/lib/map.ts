@@ -1,4 +1,5 @@
-﻿import L, { type DivIcon, type LatLngTuple } from 'leaflet'
+import L, { type DivIcon, type LatLngTuple } from 'leaflet'
+import type { MarkerOffset } from '@/lib/markerLayout'
 
 export const CHINA_MAP_CENTER: LatLngTuple = [31.2, 118.6]
 export const CHINA_MAP_ZOOM = 5
@@ -23,6 +24,7 @@ type MarkerIconOptions = {
   thumbnail: string
   title: string
   isSelected: boolean
+  offset?: MarkerOffset
 }
 
 const markerIconCache = new Map<string, DivIcon>()
@@ -31,8 +33,9 @@ export const createActivityMarkerIcon = ({
   thumbnail,
   title,
   isSelected,
+  offset = { x: 0, y: 0 },
 }: MarkerIconOptions): DivIcon => {
-  const cacheKey = `${thumbnail}::${title}::${isSelected ? '1' : '0'}`
+  const cacheKey = `${thumbnail}::${title}::${isSelected ? '1' : '0'}::${offset.x},${offset.y}`
   const cachedIcon = markerIconCache.get(cacheKey)
   if (cachedIcon) {
     return cachedIcon
@@ -44,7 +47,11 @@ export const createActivityMarkerIcon = ({
   const createdIcon = L.divIcon({
     className: 'activity-marker-wrapper',
     html: `
-      <div class="${markerClass}" aria-label="${safeTitle}">
+      <div
+        class="${markerClass}"
+        aria-label="${safeTitle}"
+        style="--activity-marker-offset-x: ${offset.x}px; --activity-marker-offset-y: ${offset.y}px;"
+      >
         <img
           src="${thumbnail}"
           alt="${safeTitle}"
