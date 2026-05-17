@@ -1,4 +1,5 @@
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import type { BilibiliVideo } from '@/types/activity'
 
@@ -17,7 +18,11 @@ type CacheReadResult = {
   state: 'fresh' | 'stale'
 }
 
-const CACHE_DIR = path.join(process.cwd(), '.cache', 'bilibili-related-videos')
+const CACHE_DIR = process.env.RELATED_VIDEO_CACHE_DIR?.trim() || (
+  process.env.VERCEL
+    ? path.join(os.tmpdir(), 'zhijiang-memory-map', 'bilibili-related-videos')
+    : path.join(process.cwd(), '.cache', 'bilibili-related-videos')
+)
 const LOCK_TTL_MS = 1000 * 60 * 5
 
 const safeCachePart = (value: string): string => value.replace(/[^a-zA-Z0-9._-]/g, '_')
