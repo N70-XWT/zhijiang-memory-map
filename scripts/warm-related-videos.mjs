@@ -27,7 +27,6 @@ const warmActivity = async (activityId) => {
   url.searchParams.set('activityId', activityId)
   url.searchParams.set('page', '1')
   url.searchParams.set('refresh', '1')
-  url.searchParams.set('algo', 'v8')
   url.searchParams.set('warmPageLimit', String(WARM_PAGE_LIMIT))
 
   const response = await fetch(url, {

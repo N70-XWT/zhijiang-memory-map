@@ -125,6 +125,14 @@ export type RelatedBilibiliDebugInfo = {
   errors: string[]
 }
 
+type RelatedBilibiliFindOptions = {
+  debug?: boolean
+  relaxed?: boolean
+  detailFetchLimit?: number
+  probePageCount?: number
+  recommendLimit?: number
+}
+
 const BILIBILI_BASE_HEADERS = {
   accept: 'application/json, text/plain, */*',
   'accept-language': 'zh-CN,zh;q=0.9,en;q=0.7',
@@ -144,9 +152,13 @@ const BVID_PATTERN = /BV[a-zA-Z0-9]{8,}/
 const SEARCH_LIMIT = 12
 const RECOMMEND_LIMIT = 8
 const DETAIL_FETCH_LIMIT = 32
+const RELAXED_RECOMMEND_LIMIT = 50
+const RELAXED_DETAIL_FETCH_LIMIT = 160
+const RELAXED_PROBE_PAGE_COUNT = 8
 const PRIMARY_DATE_WINDOW_DAYS = 20
 const BACKFILL_DATE_WINDOW_DAYS = 45
 const EXTENDED_STRONG_DATE_WINDOW_DAYS = 370
+const RELAXED_DATE_WINDOW_DAYS = 1825
 const MAX_EXTRA_PROBE_PAGES = 2
 const BILIBILI_REQUEST_TIMEOUT_MS = 8000
 const KNOWN_MULTI_STATION_TOUR_CITIES = ['上海', '北京', '广州', '成都']
@@ -398,6 +410,45 @@ const buildRelevantSearchTerms = (activity: Activity): string[] => {
       `${member} ${primarySignal} 直拍`,
     ]),
   ]).slice(0, 28)
+}
+
+const buildRelaxedSearchTerms = (activity: Activity): string[] => {
+  const baseTerms = buildRelevantSearchTerms(activity)
+  const titleSignals = extractTitleSignals(activity)
+  const members = activity.members.map((member) => member.trim()).filter(Boolean)
+  const venueToken = getVenueSearchToken(activity)
+
+  return uniqueValues([
+    ...baseTerms,
+    'A-SOUL',
+    'ASOUL',
+    'A-SOUL 线下',
+    'A-SOUL 演唱会',
+    'A-SOUL 现场',
+    'A-SOUL 全程',
+    'A-SOUL 录播',
+    'A-SOUL 直拍',
+    `A-SOUL ${activity.city}`,
+    `${activity.city} A-SOUL`,
+    `${activity.date} A-SOUL`,
+    `${activity.year} A-SOUL ${activity.city}`,
+    `A-SOUL ${activity.eventType}`,
+    `A-SOUL ${activity.city} ${activity.eventType}`,
+    `A-SOUL ${venueToken}`,
+    ...titleSignals.map((signal) => `A-SOUL ${signal}`),
+    ...titleSignals.map((signal) => `${signal} ${activity.city}`),
+    ...titleSignals.map((signal) => `${signal} A-SOUL`),
+    ...members.flatMap((member) => [
+      `${member} A-SOUL`,
+      `${member} ${activity.city}`,
+      `${member} ${activity.eventType}`,
+      member,
+      `${member} 线下`,
+      `${member} 直播`,
+      `${member} 现场`,
+    ]),
+    ...activity.tags.map((tag) => `A-SOUL ${tag}`),
+  ]).slice(0, 64)
 }
 
 const getActivityPublishDiffDays = (
@@ -823,6 +874,93 @@ const getRelevantScoredCandidate = (
   }
 }
 
+const getRelaxedScoredCandidate = (
+  activity: Activity,
+  candidate: EnrichedCandidateVideo
+): ScoredCandidateVideo | null => {
+  const pubdate = candidate.detail?.pubdate ?? candidate.searchItem.pubdate
+  const dateDiffDays = getActivityPublishDiffDays(activity, { pubdate })
+  if (dateDiffDays === null || dateDiffDays > RELAXED_DATE_WINDOW_DAYS) {
+    return null
+  }
+
+  const fields = getFieldText(candidate)
+  const contentMatch = getRelevantContentMatch(activity, candidate)
+  const titleSignals = extractTitleSignals(activity)
+  const memberTerms = activity.members.map((member) => member.trim()).filter(Boolean)
+  const sourceText = normalizeText(candidate.sourceKeywords.join(' '))
+  const visibleText = `${fields.title}${fields.tags}`
+  const allText = `${visibleText}${fields.description}${sourceText}`
+  const themeMatch = hasNormalizedMatch(allText, [activity.title, ...titleSignals])
+  const memberMatch = hasNormalizedMatch(allText, memberTerms)
+  const asoulMatch = hasNormalizedMatch(allText, ['A-SOUL', 'ASOUL'])
+  const cityOrVenueMatch = hasNormalizedMatch(allText, [
+    activity.city,
+    activity.venue,
+    getVenueSearchToken(activity),
+    activity.date,
+    String(activity.year),
+  ])
+  const sourceKeywordMatch = hasNormalizedMatch(sourceText, [
+    activity.title,
+    activity.city,
+    activity.eventType,
+    'A-SOUL',
+    'ASOUL',
+    ...titleSignals,
+    ...memberTerms,
+  ])
+  const visibleSurfaceMatch = hasNormalizedMatch(visibleText, [
+    'A-SOUL',
+    'ASOUL',
+    activity.city,
+    ...titleSignals,
+    ...memberTerms,
+  ])
+
+  if (
+    !themeMatch &&
+    !sourceKeywordMatch &&
+    !(asoulMatch && (memberMatch || cityOrVenueMatch || visibleSurfaceMatch))
+  ) {
+    return null
+  }
+
+  const stationMatch = getStationMatch(activity, fields)
+  const stationTier = stationMatch.tier ?? (cityOrVenueMatch ? 'current_station' : 'same_tour_fallback')
+  const dateBucket = dateDiffDays <= PRIMARY_DATE_WINDOW_DAYS ? 'primary' : 'backfill'
+  const dateScore = Math.max(0, RELAXED_DATE_WINDOW_DAYS - dateDiffDays) / 8
+  const relevance = contentMatch.relevance ?? (themeMatch || visibleSurfaceMatch ? 'strong' : 'fallback')
+  const relevanceScore = relevance === 'strong' ? 700 : 300
+  const stationScore = stationTier === 'current_station' ? 260 : 0
+  const sourceScore = sourceKeywordMatch ? 220 : 0
+  const themeScore = themeMatch ? 220 : 0
+  const surfaceScore = visibleSurfaceMatch ? 160 : 0
+  const preScore = getCandidatePreScore(activity, candidate)
+
+  return {
+    ...candidate,
+    dateBucket,
+    dateDiffDays,
+    matchedFields:
+      contentMatch.matchedFields.length > 0
+        ? contentMatch.matchedFields
+        : ['relaxed:search-keyword'],
+    relevance,
+    stationTier,
+    score:
+      relevanceScore +
+      stationScore +
+      sourceScore +
+      themeScore +
+      surfaceScore +
+      contentMatch.score +
+      dateScore +
+      preScore -
+      candidate.orderIndex * 0.01,
+  }
+}
+
 const toRelevantDebugCandidate = (
   candidate: EnrichedCandidateVideo,
   activity: Activity,
@@ -946,7 +1084,10 @@ const getCandidatePreScore = (activity: Activity, candidate: CandidateVideo): nu
   return score - candidate.orderIndex * 0.001
 }
 
-const selectScoredCandidates = (candidates: ScoredCandidateVideo[]): ScoredCandidateVideo[] => {
+const selectScoredCandidates = (
+  candidates: ScoredCandidateVideo[],
+  limit = RECOMMEND_LIMIT
+): ScoredCandidateVideo[] => {
   const sortedCandidates = [...candidates].sort((a, b) => b.score - a.score)
   const currentStrongCandidates = sortedCandidates.filter(
     (candidate) => candidate.stationTier === 'current_station' && candidate.relevance === 'strong'
@@ -962,7 +1103,7 @@ const selectScoredCandidates = (candidates: ScoredCandidateVideo[]): ScoredCandi
     ...currentStrongCandidates,
     ...currentFallbackCandidates,
     ...sameTourCandidates,
-  ].slice(0, RECOMMEND_LIMIT)
+  ].slice(0, limit)
 }
 
 const toBilibiliVideo = (candidate: ScoredCandidateVideo): BilibiliVideo => ({
@@ -981,10 +1122,10 @@ const collectRelatedCandidates = async (
   mixinKey: string,
   page: number,
   excludedBvids: Set<string>,
-  debugEnabled: boolean
+  options: RelatedBilibiliFindOptions
 ): Promise<{ scoredCandidates: ScoredCandidateVideo[]; debug: RelatedBilibiliDebugInfo }> => {
   const presetBvids = getPresetBvids(activity, excludedBvids)
-  const searchTerms = buildRelevantSearchTerms(activity)
+  const searchTerms = options.relaxed ? buildRelaxedSearchTerms(activity) : buildRelevantSearchTerms(activity)
   const deduped = new Map<string, CandidateVideo>()
   const errors: string[] = []
   let orderIndex = 0
@@ -1057,7 +1198,7 @@ const collectRelatedCandidates = async (
 
   const candidates = Array.from(deduped.values())
     .sort((a, b) => getCandidatePreScore(activity, b) - getCandidatePreScore(activity, a))
-    .slice(0, DETAIL_FETCH_LIMIT)
+    .slice(0, options.detailFetchLimit ?? DETAIL_FETCH_LIMIT)
   const enrichedCandidates = await Promise.all(candidates.map(enrichCandidate))
   const scoredCandidates: ScoredCandidateVideo[] = []
   const debugCandidates: RelatedBilibiliDebugCandidate[] = []
@@ -1074,12 +1215,16 @@ const collectRelatedCandidates = async (
 
     filteredReason = getRelevantFilteredReason(activity, candidate)
 
-    const scored = filteredReason ? null : getRelevantScoredCandidate(activity, candidate)
+    const scored = options.relaxed
+      ? getRelaxedScoredCandidate(activity, candidate)
+      : filteredReason
+        ? null
+        : getRelevantScoredCandidate(activity, candidate)
     if (scored) {
       scoredCandidates.push(scored)
     }
 
-    if (debugEnabled) {
+    if (options.debug) {
       debugCandidates.push(toRelevantDebugCandidate(candidate, activity, filteredReason))
     }
   }
@@ -1090,10 +1235,10 @@ const collectRelatedCandidates = async (
       searchTerms,
       searchedCandidateCount,
       dedupedCandidateCount: deduped.size,
-      detailFetchLimit: DETAIL_FETCH_LIMIT,
+      detailFetchLimit: options.detailFetchLimit ?? DETAIL_FETCH_LIMIT,
       detailFetchedCount: enrichedCandidates.filter((candidate) => candidate.detail).length,
       tagFetchedCount: enrichedCandidates.filter((candidate) => candidate.tags.length > 0).length,
-      selectedCount: selectScoredCandidates(scoredCandidates).length,
+      selectedCount: selectScoredCandidates(scoredCandidates, options.recommendLimit).length,
       candidates: debugCandidates,
       errors,
     },
@@ -1117,15 +1262,19 @@ export const findRelatedBilibiliVideos = async (
   activity: Activity,
   page: number,
   excludedBvids = new Set<string>(),
-  options: { debug?: boolean } = {}
+  options: RelatedBilibiliFindOptions = {}
 ): Promise<RelatedBilibiliVideoPage> => {
   const mixinKey = await fetchWbiMixinKey()
   const startPage = Math.max(1, Math.floor(page))
   const debugPages: RelatedBilibiliDebugInfo[] = []
   const scoredByBvid = new Map<string, ScoredCandidateVideo>()
   let nextProbePage: number | null = startPage
+  const probePageCount =
+    options.probePageCount ??
+    (options.relaxed ? RELAXED_PROBE_PAGE_COUNT : MAX_EXTRA_PROBE_PAGES + 1)
+  const recommendLimit = options.recommendLimit ?? (options.relaxed ? RELAXED_RECOMMEND_LIMIT : RECOMMEND_LIMIT)
 
-  for (let offset = 0; offset <= MAX_EXTRA_PROBE_PAGES; offset += 1) {
+  for (let offset = 0; offset < probePageCount; offset += 1) {
     const currentPage = startPage + offset
     nextProbePage = currentPage + 1
     const result = await collectRelatedCandidates(
@@ -1133,7 +1282,7 @@ export const findRelatedBilibiliVideos = async (
       mixinKey,
       currentPage,
       excludedBvids,
-      Boolean(options.debug)
+      options
     )
 
     if (options.debug) {
@@ -1146,8 +1295,8 @@ export const findRelatedBilibiliVideos = async (
       }
     }
 
-    const selectedCandidates = selectScoredCandidates(Array.from(scoredByBvid.values()))
-    if (selectedCandidates.length >= RECOMMEND_LIMIT) {
+    const selectedCandidates = selectScoredCandidates(Array.from(scoredByBvid.values()), recommendLimit)
+    if (selectedCandidates.length >= recommendLimit) {
       const videos = selectedCandidates.map(toBilibiliVideo)
       return {
         videos,
@@ -1155,7 +1304,7 @@ export const findRelatedBilibiliVideos = async (
         nextPage: nextProbePage,
         debug: options.debug
           ? {
-              searchTerms: buildRelevantSearchTerms(activity),
+              searchTerms: options.relaxed ? buildRelaxedSearchTerms(activity) : buildRelevantSearchTerms(activity),
               searchedCandidateCount: debugPages.reduce(
                 (total, pageDebug) => total + pageDebug.searchedCandidateCount,
                 0
@@ -1182,7 +1331,7 @@ export const findRelatedBilibiliVideos = async (
     }
   }
 
-  const selectedCandidates = selectScoredCandidates(Array.from(scoredByBvid.values()))
+  const selectedCandidates = selectScoredCandidates(Array.from(scoredByBvid.values()), recommendLimit)
   if (selectedCandidates.length > 0) {
     const videos = selectedCandidates.map(toBilibiliVideo)
     return {
@@ -1191,7 +1340,7 @@ export const findRelatedBilibiliVideos = async (
       nextPage: nextProbePage,
       debug: options.debug
         ? {
-            searchTerms: buildRelevantSearchTerms(activity),
+            searchTerms: options.relaxed ? buildRelaxedSearchTerms(activity) : buildRelevantSearchTerms(activity),
             searchedCandidateCount: debugPages.reduce(
               (total, pageDebug) => total + pageDebug.searchedCandidateCount,
               0
@@ -1223,7 +1372,7 @@ export const findRelatedBilibiliVideos = async (
     nextPage: null,
     debug: options.debug
       ? {
-          searchTerms: buildRelevantSearchTerms(activity),
+          searchTerms: options.relaxed ? buildRelaxedSearchTerms(activity) : buildRelevantSearchTerms(activity),
           searchedCandidateCount: debugPages.reduce(
             (total, pageDebug) => total + pageDebug.searchedCandidateCount,
             0
