@@ -1,4 +1,5 @@
 import {
+  discoverStagedRelatedBilibiliVideos,
   extractBvid,
   findRelatedBilibiliVideos,
   type RelatedBilibiliVideoPage,
@@ -6,10 +7,14 @@ import {
 import { getActivityById } from '@/data/activityRepository'
 import {
   acquireRelatedVideoPoolLock,
+  createInitialRelatedVideoSearchState,
   createEmptyRelatedVideoPool,
   getRelatedVideoPool,
+  isRelatedVideoSearchStage,
+  RELATED_VIDEO_SEARCH_STAGES,
   releaseRelatedVideoPoolLock,
   setRelatedVideoPool,
+  type PooledRelatedVideo,
   type RelatedVideoPoolEntry,
 } from '@/lib/relatedVideoPool'
 import type { Activity, BilibiliVideo } from '@/types/activity'
@@ -26,7 +31,9 @@ const RATE_LIMIT_WINDOW_MS = 1000 * 60
 const RATE_LIMIT_MAX_REQUESTS = 30
 const MAX_RELATED_VIDEO_PAGE = 6
 const RECOMMEND_PAGE_SIZE = 8
-const RELATED_VIDEO_POOL_ALGORITHM_VERSION = 'v8-pool-v3'
+const RELATED_VIDEO_POOL_ALGORITHM_VERSION = 'v8-pool-v5'
+const RELATED_VIDEO_POOL_TARGET_SIZE = 50
+const RELAXED_BACKFILL_SOURCE_STAGE = 'v4_relaxed'
 const CACHE_WAIT_RETRY_COUNT = 8
 const CACHE_WAIT_RETRY_MS = 250
 
@@ -71,27 +78,44 @@ const isAuthorizedRefresh = (request: Request, searchParams: URLSearchParams): b
 const getVideoBvidKey = (video: BilibiliVideo): string =>
   (extractBvid(`${video.id} ${video.url}`) ?? video.id) || video.url
 
+const toPublicBilibiliVideo = (video: BilibiliVideo): BilibiliVideo => ({
+  id: video.id,
+  title: video.title,
+  cover: video.cover,
+  url: video.url,
+  sourceType: video.sourceType,
+  note: video.note,
+})
+
+const getApprovedPoolVideos = (pool: RelatedVideoPoolEntry): BilibiliVideo[] => {
+  const approvedVideos = pool.videos.filter((video) => video.reviewStatus === 'approved')
+  const primaryVideos = approvedVideos.filter((video) => video.displayTier === 'primary')
+  const supplementalVideos = approvedVideos.filter((video) => video.displayTier === 'supplemental')
+  return [...primaryVideos, ...supplementalVideos].map(toPublicBilibiliVideo)
+}
+
 const toPoolPagedPayload = (
   pool: RelatedVideoPoolEntry,
   page: number,
   excludedBvids: Set<string>
 ): RelatedBilibiliVideoPage => {
   const startIndex = (page - 1) * RECOMMEND_PAGE_SIZE
+  const visibleVideos = getApprovedPoolVideos(pool)
   const selected: BilibiliVideo[] = []
   let cursor = startIndex
 
-  while (cursor < pool.videos.length && selected.length < RECOMMEND_PAGE_SIZE) {
-    const video = pool.videos[cursor]
+  while (cursor < visibleVideos.length && selected.length < RECOMMEND_PAGE_SIZE) {
+    const video = visibleVideos[cursor]
     if (video && !excludedBvids.has(getVideoBvidKey(video))) {
       selected.push(video)
     }
     cursor += 1
   }
 
-  const hasStoredMore = pool.videos
+  const hasStoredMore = visibleVideos
     .slice(cursor)
     .some((video) => !excludedBvids.has(getVideoBvidKey(video)))
-  const canExpandMore = !pool.exhausted
+  const canExpandMore = !pool.exhausted && pool.videos.length < RELATED_VIDEO_POOL_TARGET_SIZE
   const hasMore = hasStoredMore || canExpandMore
 
   return {
@@ -109,10 +133,10 @@ const isRelatedVideoPoolEnabled = (): boolean =>
   process.env.RELATED_VIDEO_POOL_ENABLED !== '0'
 
 const mergePoolVideos = (
-  currentVideos: BilibiliVideo[],
-  nextVideos: BilibiliVideo[],
+  currentVideos: PooledRelatedVideo[],
+  nextVideos: PooledRelatedVideo[],
   excludedBvids: Set<string>
-): BilibiliVideo[] => {
+): PooledRelatedVideo[] => {
   const usedBvids = new Set(currentVideos.map(getVideoBvidKey).filter(Boolean))
   const merged = [...currentVideos]
 
@@ -128,6 +152,16 @@ const mergePoolVideos = (
 
   return merged
 }
+
+const toRelaxedBackfillVideo = (video: BilibiliVideo): PooledRelatedVideo => ({
+  ...video,
+  note: video.note ?? '待审核：宽松候选补量',
+  reviewStatus: 'pending',
+  displayTier: 'supplemental',
+  sourceStage: RELAXED_BACKFILL_SOURCE_STAGE,
+  relevanceScore: 0,
+  reviewNote: '宽松候选，待人工审核',
+})
 
 const waitForRelatedVideoPool = async (
   activityId: string
@@ -149,38 +183,122 @@ const expandRelatedVideoPool = async (
   excludedBvids: Set<string>,
   allowExhaustedRetry: boolean
 ): Promise<RelatedVideoPoolEntry> => {
-  const current =
+  let current =
     (await getRelatedVideoPool(activityId, RELATED_VIDEO_POOL_ALGORITHM_VERSION)) ??
     createEmptyRelatedVideoPool(activityId, RELATED_VIDEO_POOL_ALGORITHM_VERSION)
 
-  if (current.exhausted && !allowExhaustedRetry) {
+  if (
+    current.exhausted &&
+    current.videos.length >= RELATED_VIDEO_POOL_TARGET_SIZE &&
+    !allowExhaustedRetry
+  ) {
     return current
   }
 
+  if (current.exhausted && allowExhaustedRetry) {
+    current = {
+      ...current,
+      searchCursor: 1,
+      searchState: createInitialRelatedVideoSearchState(),
+      relaxedSearchCursor: 1,
+      relaxedExhausted: false,
+      exhausted: false,
+    }
+  }
+
   const poolBvids = new Set(current.videos.map(getVideoBvidKey).filter(Boolean))
-  const searchExcludedBvids = new Set([...excludedBvids, ...poolBvids])
-  const searchCursor = Math.max(1, Math.floor(current.searchCursor || 1))
+  const rejectedBvids = new Set(current.rejectedBvids.filter(Boolean))
+  const searchExcludedBvids = new Set([...excludedBvids, ...poolBvids, ...rejectedBvids])
+  let workingPool = current
 
   try {
-    const result = await findRelatedBilibiliVideos(activity, searchCursor, searchExcludedBvids, {
-      relaxed: true,
-    })
-    const mergedVideos = mergePoolVideos(current.videos, result.videos, excludedBvids)
-    const now = Date.now()
-    const nextPool: RelatedVideoPoolEntry = {
-      ...current,
-      videos: mergedVideos,
-      searchCursor: result.nextPage ?? searchCursor + 1,
-      exhausted: result.videos.length === 0,
-      updatedAt: now,
-      lastError: undefined,
+    while (!workingPool.exhausted) {
+      const searchState = workingPool.searchState ?? createInitialRelatedVideoSearchState()
+      const stage = searchState.stage
+      const searchCursor = Math.max(1, Math.floor(searchState.pageByStage[stage] || 1))
+      const result = await discoverStagedRelatedBilibiliVideos(
+        activity,
+        stage,
+        searchCursor,
+        searchExcludedBvids
+      )
+      const mergedVideos = mergePoolVideos(
+        workingPool.videos,
+        result.videos,
+        new Set([...excludedBvids, ...workingPool.rejectedBvids])
+      )
+      const foundNewVideos = mergedVideos.length > workingPool.videos.length
+      for (const video of mergedVideos) {
+        searchExcludedBvids.add(getVideoBvidKey(video))
+      }
+
+      const exhaustedStages = result.stageExhausted
+        ? Array.from(new Set([...searchState.exhaustedStages, stage]))
+        : searchState.exhaustedStages
+      const nextStage = RELATED_VIDEO_SEARCH_STAGES.find(
+        (candidateStage) => !exhaustedStages.includes(candidateStage)
+      )
+      const exhausted = !nextStage
+      const nextSearchState = {
+        stage: nextStage ?? stage,
+        pageByStage: {
+          ...searchState.pageByStage,
+          [stage]: result.nextPage,
+        },
+        exhaustedStages,
+      }
+
+      workingPool = {
+        ...workingPool,
+        videos: mergedVideos,
+        searchCursor: result.nextPage,
+        searchState: nextSearchState,
+        exhausted,
+        updatedAt: Date.now(),
+        lastError: undefined,
+      }
+
+      if (foundNewVideos || exhausted || !result.stageExhausted) {
+        break
+      }
     }
 
-    await setRelatedVideoPool(nextPool)
-    return nextPool
+    if (
+      workingPool.videos.length < RELATED_VIDEO_POOL_TARGET_SIZE &&
+      !workingPool.relaxedExhausted
+    ) {
+      const relaxedPage = Math.max(1, Math.floor(workingPool.relaxedSearchCursor || 1))
+      const result = await findRelatedBilibiliVideos(activity, relaxedPage, searchExcludedBvids, {
+        relaxed: true,
+        includeSeedRelated: false,
+        recommendLimit: RELATED_VIDEO_POOL_TARGET_SIZE - workingPool.videos.length,
+      })
+      const relaxedVideos = result.videos.map(toRelaxedBackfillVideo)
+      const mergedVideos = mergePoolVideos(
+        workingPool.videos,
+        relaxedVideos,
+        new Set([...excludedBvids, ...workingPool.rejectedBvids])
+      )
+      const relaxedExhausted = !result.hasMore
+      workingPool = {
+        ...workingPool,
+        videos: mergedVideos,
+        relaxedSearchCursor: result.nextPage ?? relaxedPage + 1,
+        relaxedExhausted,
+        exhausted:
+          mergedVideos.length >= RELATED_VIDEO_POOL_TARGET_SIZE
+            ? true
+            : workingPool.exhausted && relaxedExhausted,
+        updatedAt: Date.now(),
+        lastError: undefined,
+      }
+    }
+
+    await setRelatedVideoPool(workingPool)
+    return workingPool
   } catch (error) {
     const failedPool: RelatedVideoPoolEntry = {
-      ...current,
+      ...workingPool,
       updatedAt: Date.now(),
       lastError:
         error instanceof Error ? error.message : 'Failed to expand related video pool.',
@@ -203,8 +321,13 @@ const handleRelatedVideoPoolRequest = async (
     createEmptyRelatedVideoPool(activityId, RELATED_VIDEO_POOL_ALGORITHM_VERSION)
   let payload = toPoolPagedPayload(pool, page, excludedBvids)
   const expansionAttempts = forceRefresh ? warmPageLimit : 1
+  const needsCandidateBackfill = pool.videos.length < RELATED_VIDEO_POOL_TARGET_SIZE
   const shouldExpand =
-    forceRefresh || (payload.videos.length < RECOMMEND_PAGE_SIZE && !pool.exhausted)
+    forceRefresh ||
+    needsCandidateBackfill ||
+    (payload.videos.length < RECOMMEND_PAGE_SIZE &&
+      !pool.exhausted &&
+      pool.videos.length < RELATED_VIDEO_POOL_TARGET_SIZE)
 
   if (!shouldExpand) {
     return payload
@@ -260,6 +383,8 @@ export async function GET(request: Request) {
       ? Math.min(rawWarmPageLimit, MAX_RELATED_VIDEO_PAGE)
       : MAX_RELATED_VIDEO_PAGE
   const debug = searchParams.get('debug') === '1' && process.env.NODE_ENV !== 'production'
+  const rawDebugStage = searchParams.get('stage')
+  const debugStage = isRelatedVideoSearchStage(rawDebugStage) ? rawDebugStage : null
   const forceRefresh = searchParams.get('refresh') === '1'
   const rawExclude = searchParams.get('exclude') ?? ''
   const excludedBvidList = rawExclude
@@ -318,6 +443,25 @@ export async function GET(request: Request) {
 
   if (debug) {
     try {
+      if (debugStage) {
+        const result = await discoverStagedRelatedBilibiliVideos(
+          activity,
+          debugStage,
+          page,
+          excludedBvids,
+          { debug: true }
+        )
+        return jsonWithCacheHeaders(
+          {
+            videos: result.videos,
+            hasMore: false,
+            nextPage: null,
+            debug: result.debug,
+          },
+          'debug'
+        )
+      }
+
       const result = await findRelatedBilibiliVideos(activity, page, excludedBvids, { debug })
       return jsonWithCacheHeaders(result, 'debug')
     } catch (error) {

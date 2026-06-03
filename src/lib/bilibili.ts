@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto'
 import type { Activity, BilibiliVideo } from '@/types/activity'
+import type {
+  PooledRelatedVideo,
+  RelatedVideoDisplayTier,
+  RelatedVideoReviewStatus,
+  RelatedVideoSearchStage,
+} from '@/lib/relatedVideoPool'
 
 type WbiImageInfo = {
   img_url?: string
@@ -128,6 +134,8 @@ export type RelatedBilibiliDebugInfo = {
 type RelatedBilibiliFindOptions = {
   debug?: boolean
   relaxed?: boolean
+  stage?: RelatedVideoSearchStage
+  includeSeedRelated?: boolean
   detailFetchLimit?: number
   probePageCount?: number
   recommendLimit?: number
@@ -155,6 +163,11 @@ const DETAIL_FETCH_LIMIT = 32
 const RELAXED_RECOMMEND_LIMIT = 50
 const RELAXED_DETAIL_FETCH_LIMIT = 160
 const RELAXED_PROBE_PAGE_COUNT = 8
+const STAGED_DETAIL_FETCH_LIMIT = 48
+const STAGED_RECOMMEND_LIMIT = 50
+const STAGED_MIN_PROBE_PAGE_COUNT = 3
+const STAGED_MAX_PROBE_PAGE_COUNT = 5
+const STAGED_MAX_SEARCH_PAGE = 50
 const PRIMARY_DATE_WINDOW_DAYS = 20
 const BACKFILL_DATE_WINDOW_DAYS = 45
 const EXTENDED_STRONG_DATE_WINDOW_DAYS = 370
@@ -162,10 +175,28 @@ const RELAXED_DATE_WINDOW_DAYS = 1825
 const MAX_EXTRA_PROBE_PAGES = 2
 const BILIBILI_REQUEST_TIMEOUT_MS = 8000
 const KNOWN_MULTI_STATION_TOUR_CITIES = ['上海', '北京', '广州', '成都']
+const LIVE_SEARCH_KEYWORDS = ['现场', '直拍', '全程', '录播', '返图', '实录']
 
 const getBilibiliHeaders = () => {
   const cookie = process.env.BILIBILI_COOKIE?.trim()
   return cookie ? { ...BILIBILI_BASE_HEADERS, cookie } : BILIBILI_BASE_HEADERS
+}
+
+const withBilibiliCookieHint = (message: string, code?: number): string => {
+  const normalizedMessage = message.toLowerCase()
+  const mayNeedCookie =
+    code === -101 ||
+    code === -111 ||
+    code === -352 ||
+    normalizedMessage.includes('登录') ||
+    normalizedMessage.includes('鉴权') ||
+    normalizedMessage.includes('cookie') ||
+    normalizedMessage.includes('csrf') ||
+    normalizedMessage.includes('风控')
+
+  return mayNeedCookie
+    ? `${message} Bilibili Cookie 可能已过期，请检查 BILIBILI_COOKIE。`
+    : message
 }
 
 const fetchBilibiliJson = async <Payload>(url: string): Promise<Payload> => {
@@ -180,7 +211,12 @@ const fetchBilibiliJson = async <Payload>(url: string): Promise<Payload> => {
     })
 
     if (!response.ok) {
-      throw new Error(`Bilibili request failed with HTTP ${response.status}.`)
+      const message = `Bilibili request failed with HTTP ${response.status}.`
+      throw new Error(
+        response.status === 401 || response.status === 403
+          ? withBilibiliCookieHint(message, response.status)
+          : message
+      )
     }
 
     return (await response.json()) as Payload
@@ -251,7 +287,9 @@ export const fetchWbiMixinKey = async (): Promise<string> => {
   )
   const wbiImage = payload.data?.wbi_img
   if (payload.code !== 0 || !wbiImage?.img_url || !wbiImage.sub_url) {
-    throw new Error(payload.message || 'Bilibili WBI key is unavailable.')
+    throw new Error(
+      withBilibiliCookieHint(payload.message || 'Bilibili WBI key is unavailable.', payload.code)
+    )
   }
 
   return getMixinKey(wbiImage)
@@ -277,7 +315,12 @@ export const searchBilibiliVideos = async (
     `https://api.bilibili.com/x/web-interface/wbi/search/type?${query}`
   )
   if (payload.code !== 0) {
-    throw new Error(payload.message || `Bilibili search returned code ${payload.code}.`)
+    throw new Error(
+      withBilibiliCookieHint(
+        payload.message || `Bilibili search returned code ${payload.code}.`,
+        payload.code
+      )
+    )
   }
 
   return payload.data?.result?.slice(0, SEARCH_LIMIT) ?? []
@@ -451,6 +494,94 @@ const buildRelaxedSearchTerms = (activity: Activity): string[] => {
   ]).slice(0, 64)
 }
 
+const extractActivityTitleSignals = (activity: Activity): string[] => {
+  const blockedSignals = new Set([
+    normalizeText(activity.city),
+    normalizeText(`${activity.city}站`),
+    'a',
+    'soul',
+    'asoul',
+  ])
+  const titlePieces = activity.title
+    .replace(/A-SOUL/gi, 'ASOUL')
+    .split(/[-—–|｜:：]/)
+    .flatMap((piece) => {
+      const cleaned = removeGenericTitleWords(piece)
+      return [cleaned, ...cleaned.split(/\s+/)]
+    })
+
+  return uniqueValues(titlePieces)
+    .filter((value) => {
+      const normalized = normalizeText(value)
+      return normalized.length >= 2 && !blockedSignals.has(normalized)
+    })
+    .slice(0, 4)
+}
+
+const getActivityDateSearchTerms = (activity: Activity): string[] => {
+  const [, month = '', day = ''] = activity.date.split('-')
+  const monthNumber = Number.parseInt(month, 10)
+  const dayNumber = Number.parseInt(day, 10)
+
+  return uniqueValues([
+    activity.date,
+    activity.date.replace(/-/g, ''),
+    Number.isFinite(monthNumber) && Number.isFinite(dayNumber)
+      ? `${monthNumber}月${dayNumber}日`
+      : '',
+  ])
+}
+
+const getStagedActivityTerms = (activity: Activity): string[] =>
+  uniqueValues([activity.title, ...extractActivityTitleSignals(activity)]).slice(0, 4)
+
+export const buildStagedRelatedVideoSearchTerms = (
+  activity: Activity,
+  stage: RelatedVideoSearchStage
+): string[] => {
+  const members = activity.members.map((member) => member.trim()).filter(Boolean)
+  const activityTerms = getStagedActivityTerms(activity)
+  const primaryActivityTerms = activityTerms.slice(0, 2)
+  const primaryActivityTerm = primaryActivityTerms[1] ?? primaryActivityTerms[0] ?? activity.title
+  const dates = getActivityDateSearchTerms(activity)
+  const venueToken = getVenueSearchToken(activity)
+
+  if (stage === 'member_activity') {
+    return uniqueValues(
+      members.flatMap((member) =>
+        primaryActivityTerms.map((activityTerm) => `${member} ${activityTerm}`)
+      )
+    ).slice(0, 12)
+  }
+
+  if (stage === 'date_activity') {
+    return uniqueValues(
+      dates.flatMap((date) =>
+        primaryActivityTerms.map((activityTerm) => `${date} ${activityTerm}`)
+      )
+    ).slice(0, 12)
+  }
+
+  if (stage === 'live_activity') {
+    return uniqueValues(
+      members.flatMap((member) =>
+        ['现场', '直拍', '录播'].map((keyword) => `${member} ${primaryActivityTerm} ${keyword}`)
+      )
+    ).slice(0, 18)
+  }
+
+  return uniqueValues(
+    LIVE_SEARCH_KEYWORDS.flatMap((keyword) => [
+      `${primaryActivityTerm} ${keyword}`,
+      `${activity.city} ${primaryActivityTerm} ${keyword}`,
+      `${venueToken} ${primaryActivityTerm} ${keyword}`,
+      `A-SOUL ${activity.city} ${keyword}`,
+      ...members.map((member) => `${member} ${activity.city} ${keyword}`),
+      ...dates.map((date) => `${date} A-SOUL ${keyword}`),
+    ])
+  ).slice(0, 48)
+}
+
 const getActivityPublishDiffDays = (
   activity: Activity,
   item: Pick<BilibiliSearchItem, 'pubdate'>
@@ -552,6 +683,21 @@ const getScoredCandidate = (
     stationTier: 'current_station',
     score: bucketScore + contentMatch.score + dateScore + keywordScore - candidate.orderIndex * 0.01,
   }
+}
+
+const getActivityRelativePublishDiffDays = (
+  activity: Activity,
+  item: Pick<BilibiliSearchItem, 'pubdate'>
+): number | null => {
+  if (!item.pubdate) {
+    return null
+  }
+
+  const activityTime = new Date(`${activity.date}T00:00:00+08:00`).getTime()
+  const publishTime = item.pubdate * 1000
+  const diffDays = (publishTime - activityTime) / 86_400_000
+
+  return Number.isFinite(diffDays) ? diffDays : null
 }
 
 const toDebugCandidate = (
@@ -961,6 +1107,93 @@ const getRelaxedScoredCandidate = (
   }
 }
 
+const getStagedScoredCandidate = (
+  activity: Activity,
+  candidate: EnrichedCandidateVideo,
+  stage: RelatedVideoSearchStage
+): ScoredCandidateVideo | null => {
+  const pubdate = candidate.detail?.pubdate ?? candidate.searchItem.pubdate
+  const dateDiffDays = getActivityPublishDiffDays(activity, { pubdate })
+  const relativeDateDiffDays = getActivityRelativePublishDiffDays(activity, { pubdate })
+  if (dateDiffDays === null || relativeDateDiffDays === null) {
+    return null
+  }
+
+  const fields = getFieldText(candidate)
+  const allContentText = `${fields.title}${fields.tags}${fields.description}`
+  const visibleText = `${fields.title}${fields.tags}`
+  const sourceText = normalizeText(candidate.sourceKeywords.join(' '))
+  const activityTerms = getStagedActivityTerms(activity)
+  const memberMatch = hasNormalizedMatch(allContentText, activity.members)
+  const themeMatch = hasNormalizedMatch(allContentText, activityTerms)
+  const dateMatch = hasNormalizedMatch(allContentText, getActivityDateSearchTerms(activity))
+  const liveMatch = hasNormalizedMatch(allContentText, LIVE_SEARCH_KEYWORDS)
+  const asoulMatch = hasNormalizedMatch(allContentText, ['A-SOUL', 'ASOUL'])
+  const cityOrVenueMatch = hasNormalizedMatch(allContentText, [
+    activity.city,
+    `${activity.city}站`,
+    activity.venue,
+    getVenueSearchToken(activity),
+  ])
+  const sourceLiveMatch = hasNormalizedMatch(sourceText, LIVE_SEARCH_KEYWORDS)
+
+  const accepted =
+    stage === 'member_activity'
+      ? memberMatch && themeMatch
+      : stage === 'date_activity'
+        ? dateMatch && themeMatch
+        : stage === 'live_activity'
+          ? memberMatch && themeMatch && liveMatch
+          : relativeDateDiffDays >= -1 &&
+            relativeDateDiffDays <= 10 &&
+            (liveMatch || sourceLiveMatch) &&
+            (memberMatch || themeMatch || cityOrVenueMatch || dateMatch || asoulMatch)
+
+  if (!accepted) {
+    return null
+  }
+
+  const contentMatch = getRelevantContentMatch(activity, candidate)
+  const stationMatch = getStationMatch(activity, fields)
+  const stationTier = stationMatch.tier ?? 'same_tour_fallback'
+  const dateBucket = dateDiffDays <= PRIMARY_DATE_WINDOW_DAYS ? 'primary' : 'backfill'
+  const stageScore = {
+    member_activity: 4000,
+    date_activity: 3200,
+    live_activity: 2600,
+    post_event_live: 1800,
+  }[stage]
+  const stationScore = stationTier === 'current_station' ? 1600 : 0
+  const visibleScore =
+    (hasNormalizedMatch(visibleText, activityTerms) ? 360 : 0) +
+    (hasNormalizedMatch(visibleText, activity.members) ? 240 : 0) +
+    (hasNormalizedMatch(visibleText, [activity.city, activity.venue]) ? 180 : 0)
+  const anchorScore =
+    (themeMatch ? 300 : 0) +
+    (memberMatch ? 180 : 0) +
+    (dateMatch ? 140 : 0) +
+    (cityOrVenueMatch ? 120 : 0) +
+    (liveMatch ? 80 : 0)
+  const dateScore = Math.max(0, 370 - dateDiffDays)
+
+  return {
+    ...candidate,
+    dateBucket,
+    dateDiffDays,
+    matchedFields: contentMatch.matchedFields,
+    relevance: 'strong',
+    stationTier,
+    score:
+      stageScore +
+      stationScore +
+      visibleScore +
+      anchorScore +
+      contentMatch.score +
+      dateScore -
+      candidate.orderIndex * 0.01,
+  }
+}
+
 const toRelevantDebugCandidate = (
   candidate: EnrichedCandidateVideo,
   activity: Activity,
@@ -994,7 +1227,12 @@ const fetchVideoDetail = async (bvid: string): Promise<BilibiliViewInfo> => {
 
   const payload = await fetchBilibiliJson<BilibiliViewPayload>(url.toString())
   if (payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || `Bilibili view returned code ${payload.code}.`)
+    throw new Error(
+      withBilibiliCookieHint(
+        payload.message || `Bilibili view returned code ${payload.code}.`,
+        payload.code
+      )
+    )
   }
 
   return payload.data
@@ -1006,7 +1244,12 @@ const fetchVideoTags = async (bvid: string): Promise<string[]> => {
 
   const payload = await fetchBilibiliJson<BilibiliTagPayload>(url.toString())
   if (payload.code !== 0) {
-    throw new Error(payload.message || `Bilibili tag returned code ${payload.code}.`)
+    throw new Error(
+      withBilibiliCookieHint(
+        payload.message || `Bilibili tag returned code ${payload.code}.`,
+        payload.code
+      )
+    )
   }
 
   return (payload.data ?? [])
@@ -1020,7 +1263,12 @@ const fetchRelatedVideosBySeed = async (bvid: string): Promise<BilibiliSearchIte
 
   const payload = await fetchBilibiliJson<BilibiliRelatedPayload>(url.toString())
   if (payload.code !== 0) {
-    throw new Error(payload.message || `Bilibili related returned code ${payload.code}.`)
+    throw new Error(
+      withBilibiliCookieHint(
+        payload.message || `Bilibili related returned code ${payload.code}.`,
+        payload.code
+      )
+    )
   }
 
   return (payload.data ?? []).slice(0, SEARCH_LIMIT).map((item) => ({
@@ -1106,7 +1354,7 @@ const selectScoredCandidates = (
   ].slice(0, limit)
 }
 
-const toBilibiliVideo = (candidate: ScoredCandidateVideo): BilibiliVideo => ({
+const toBilibiliVideo = (candidate: ScoredCandidateVideo, note = '自动推荐'): BilibiliVideo => ({
   id: candidate.bvid,
   title: cleanBilibiliTitle(candidate.detail?.title || candidate.searchItem.title),
   cover: normalizeBilibiliImageUrl(candidate.detail?.pic || candidate.searchItem.pic),
@@ -1114,8 +1362,41 @@ const toBilibiliVideo = (candidate: ScoredCandidateVideo): BilibiliVideo => ({
     ? candidate.searchItem.arcurl.replace(/^http:\/\//, 'https://')
     : `https://www.bilibili.com/video/${candidate.bvid}`,
   sourceType: 'fan',
-  note: '自动推荐',
+  note,
 })
+
+const getReviewDefaultsForStage = (
+  stage: RelatedVideoSearchStage
+): {
+  reviewStatus: RelatedVideoReviewStatus
+  displayTier: RelatedVideoDisplayTier
+} => {
+  if (stage === 'member_activity' || stage === 'date_activity') {
+    return {
+      reviewStatus: 'approved',
+      displayTier: 'primary',
+    }
+  }
+
+  return {
+    reviewStatus: 'pending',
+    displayTier: 'supplemental',
+  }
+}
+
+const toPooledBilibiliVideo = (
+  candidate: ScoredCandidateVideo,
+  stage: RelatedVideoSearchStage
+): PooledRelatedVideo => {
+  const reviewDefaults = getReviewDefaultsForStage(stage)
+  const note = getStagedRecommendationNote(stage)
+  return {
+    ...toBilibiliVideo(candidate, note),
+    ...reviewDefaults,
+    sourceStage: stage,
+    relevanceScore: Math.round(candidate.score),
+  }
+}
 
 const collectRelatedCandidates = async (
   activity: Activity,
@@ -1125,11 +1406,16 @@ const collectRelatedCandidates = async (
   options: RelatedBilibiliFindOptions
 ): Promise<{ scoredCandidates: ScoredCandidateVideo[]; debug: RelatedBilibiliDebugInfo }> => {
   const presetBvids = getPresetBvids(activity, excludedBvids)
-  const searchTerms = options.relaxed ? buildRelaxedSearchTerms(activity) : buildRelevantSearchTerms(activity)
+  const searchTerms = options.stage
+    ? buildStagedRelatedVideoSearchTerms(activity, options.stage)
+    : options.relaxed
+      ? buildRelaxedSearchTerms(activity)
+      : buildRelevantSearchTerms(activity)
   const deduped = new Map<string, CandidateVideo>()
   const errors: string[] = []
   let orderIndex = 0
   let searchedCandidateCount = 0
+  let successfulSearchCount = 0
 
   const addCandidate = (item: BilibiliSearchItem, sourceKeyword: string) => {
     const bvid = item.bvid
@@ -1166,18 +1452,22 @@ const collectRelatedCandidates = async (
     }
 
     const { keyword, items } = result.value
+    successfulSearchCount += 1
     searchedCandidateCount += items.length
     for (const item of items) {
       addCandidate(item, keyword)
     }
   }
 
-  const seedResults = await Promise.allSettled(
-    getSeedBvids(activity).map(async (seedBvid) => ({
-      seedBvid,
-      items: await fetchRelatedVideosBySeed(seedBvid),
-    }))
-  )
+  const seedResults =
+    options.includeSeedRelated === false || options.stage
+      ? []
+      : await Promise.allSettled(
+          getSeedBvids(activity).map(async (seedBvid) => ({
+            seedBvid,
+            items: await fetchRelatedVideosBySeed(seedBvid),
+          }))
+        )
 
   for (const result of seedResults) {
     if (result.status === 'rejected') {
@@ -1213,13 +1503,15 @@ const collectRelatedCandidates = async (
 
     let filteredReason: string | undefined
 
-    filteredReason = getRelevantFilteredReason(activity, candidate)
+    filteredReason = options.stage ? undefined : getRelevantFilteredReason(activity, candidate)
 
-    const scored = options.relaxed
-      ? getRelaxedScoredCandidate(activity, candidate)
-      : filteredReason
-        ? null
-        : getRelevantScoredCandidate(activity, candidate)
+    const scored = options.stage
+      ? getStagedScoredCandidate(activity, candidate, options.stage)
+      : options.relaxed
+        ? getRelaxedScoredCandidate(activity, candidate)
+        : filteredReason
+          ? null
+          : getRelevantScoredCandidate(activity, candidate)
     if (scored) {
       scoredCandidates.push(scored)
     }
@@ -1227,6 +1519,10 @@ const collectRelatedCandidates = async (
     if (options.debug) {
       debugCandidates.push(toRelevantDebugCandidate(candidate, activity, filteredReason))
     }
+  }
+
+  if (searchResults.length > 0 && successfulSearchCount === 0) {
+    throw new Error(errors[0] || 'All Bilibili search requests failed.')
   }
 
   return {
@@ -1297,7 +1593,7 @@ export const findRelatedBilibiliVideos = async (
 
     const selectedCandidates = selectScoredCandidates(Array.from(scoredByBvid.values()), recommendLimit)
     if (selectedCandidates.length >= recommendLimit) {
-      const videos = selectedCandidates.map(toBilibiliVideo)
+      const videos = selectedCandidates.map((candidate) => toBilibiliVideo(candidate))
       return {
         videos,
         hasMore: true,
@@ -1333,7 +1629,7 @@ export const findRelatedBilibiliVideos = async (
 
   const selectedCandidates = selectScoredCandidates(Array.from(scoredByBvid.values()), recommendLimit)
   if (selectedCandidates.length > 0) {
-    const videos = selectedCandidates.map(toBilibiliVideo)
+    const videos = selectedCandidates.map((candidate) => toBilibiliVideo(candidate))
     return {
       videos,
       hasMore: true,
@@ -1391,6 +1687,111 @@ export const findRelatedBilibiliVideos = async (
             0
           ),
           selectedCount: 0,
+          candidates: debugPages.flatMap((pageDebug) => pageDebug.candidates),
+          errors: debugPages.flatMap((pageDebug) => pageDebug.errors),
+        }
+      : undefined,
+  }
+}
+
+const getStagedRecommendationNote = (stage: RelatedVideoSearchStage): string =>
+  ({
+    member_activity: '自动推荐：成员+活动',
+    date_activity: '自动推荐：日期+活动',
+    live_activity: '自动推荐：现场补量',
+    post_event_live: '自动推荐：活动后现场补量',
+  })[stage]
+
+export type StagedRelatedBilibiliDiscovery = {
+  videos: PooledRelatedVideo[]
+  nextPage: number
+  stageExhausted: boolean
+  debug?: RelatedBilibiliDebugInfo
+}
+
+export const discoverStagedRelatedBilibiliVideos = async (
+  activity: Activity,
+  stage: RelatedVideoSearchStage,
+  page: number,
+  excludedBvids = new Set<string>(),
+  options: { debug?: boolean } = {}
+): Promise<StagedRelatedBilibiliDiscovery> => {
+  const mixinKey = await fetchWbiMixinKey()
+  const startPage = Math.max(1, Math.floor(page))
+  const debugPages: RelatedBilibiliDebugInfo[] = []
+  const scoredByBvid = new Map<string, ScoredCandidateVideo>()
+  let searchedPageCount = 0
+  let stageExhausted = false
+
+  for (let offset = 0; offset < STAGED_MAX_PROBE_PAGE_COUNT; offset += 1) {
+    const currentPage = startPage + offset
+    const result = await collectRelatedCandidates(
+      activity,
+      mixinKey,
+      currentPage,
+      excludedBvids,
+      {
+        debug: options.debug,
+        stage,
+        includeSeedRelated: false,
+        detailFetchLimit: STAGED_DETAIL_FETCH_LIMIT,
+        recommendLimit: STAGED_RECOMMEND_LIMIT,
+      }
+    )
+    searchedPageCount += 1
+    if (result.debug.searchedCandidateCount === 0 || currentPage >= STAGED_MAX_SEARCH_PAGE) {
+      stageExhausted = true
+    }
+
+    if (options.debug) {
+      debugPages.push(result.debug)
+    }
+
+    for (const candidate of result.scoredCandidates) {
+      if (!scoredByBvid.has(candidate.bvid)) {
+        scoredByBvid.set(candidate.bvid, candidate)
+      }
+    }
+
+    if (
+      stageExhausted ||
+      searchedPageCount >= STAGED_MIN_PROBE_PAGE_COUNT &&
+      result.scoredCandidates.length === 0
+    ) {
+      break
+    }
+  }
+
+  const videos = selectScoredCandidates(
+    Array.from(scoredByBvid.values()),
+    STAGED_RECOMMEND_LIMIT
+  ).map((candidate) => toPooledBilibiliVideo(candidate, stage))
+
+  return {
+    videos,
+    nextPage: startPage + searchedPageCount,
+    stageExhausted,
+    debug: options.debug
+      ? {
+          searchTerms: buildStagedRelatedVideoSearchTerms(activity, stage),
+          searchedCandidateCount: debugPages.reduce(
+            (total, pageDebug) => total + pageDebug.searchedCandidateCount,
+            0
+          ),
+          dedupedCandidateCount: debugPages.reduce(
+            (total, pageDebug) => total + pageDebug.dedupedCandidateCount,
+            0
+          ),
+          detailFetchLimit: STAGED_DETAIL_FETCH_LIMIT,
+          detailFetchedCount: debugPages.reduce(
+            (total, pageDebug) => total + pageDebug.detailFetchedCount,
+            0
+          ),
+          tagFetchedCount: debugPages.reduce(
+            (total, pageDebug) => total + pageDebug.tagFetchedCount,
+            0
+          ),
+          selectedCount: videos.length,
           candidates: debugPages.flatMap((pageDebug) => pageDebug.candidates),
           errors: debugPages.flatMap((pageDebug) => pageDebug.errors),
         }
