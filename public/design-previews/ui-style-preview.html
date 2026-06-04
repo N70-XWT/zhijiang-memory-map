@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>枝江回忆地图 UI 风格预览</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #273044;
+        --muted: #667085;
+        --line: rgba(39, 48, 68, 0.14);
+        --paper: #fffdf8;
+        --pink: #ff7eb8;
+        --blue: #70c7ff;
+        --mint: #6ee7c8;
+        --yellow: #ffd76a;
+        --violet: #a78bfa;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 0%, rgba(255, 126, 184, 0.18), transparent 28%),
+          radial-gradient(circle at 90% 6%, rgba(112, 199, 255, 0.2), transparent 30%),
+          linear-gradient(180deg, #fff7fb 0%, #f4fbff 42%, #fffdf8 100%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        width: min(1480px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 34px 0 64px;
+      }
+
+      .intro {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 28px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 126, 184, 0.28);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.66);
+        color: #a84273;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      h1 {
+        margin: 16px 0 12px;
+        font-size: clamp(36px, 5vw, 74px);
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      .intro p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.8;
+      }
+
+      .note {
+        padding: 18px;
+        border: 1px solid rgba(112, 199, 255, 0.24);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 18px 50px rgba(105, 79, 120, 0.1);
+      }
+
+      .note strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 15px;
+      }
+
+      .style-block {
+        margin-top: 30px;
+        border: 1px solid rgba(39, 48, 68, 0.12);
+        border-radius: 26px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 30px 90px rgba(83, 67, 103, 0.12);
+      }
+
+      .style-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 22px 24px;
+        border-bottom: 1px solid rgba(39, 48, 68, 0.1);
+        background: rgba(255, 255, 255, 0.58);
+      }
+
+      .style-title {
+        margin: 0;
+        font-size: 26px;
+        line-height: 1.15;
+      }
+
+      .style-copy {
+        margin: 8px 0 0;
+        color: var(--muted);
+        line-height: 1.75;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+        align-content: flex-start;
+      }
+
+      .tag {
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid rgba(39, 48, 68, 0.1);
+        color: #667085;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .mock-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 310px;
+        gap: 22px;
+        padding: 24px;
+      }
+
+      .desktop,
+      .phone {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(39, 48, 68, 0.16);
+        background: #fff;
+        box-shadow: 0 16px 48px rgba(39, 48, 68, 0.12);
+      }
+
+      .desktop {
+        min-height: 650px;
+        border-radius: 24px;
+      }
+
+      .phone {
+        width: 100%;
+        min-height: 650px;
+        border-radius: 34px;
+      }
+
+      .map-grid {
+        position: absolute;
+        inset: 0;
+        opacity: 0.6;
+        background-image:
+          linear-gradient(rgba(39, 48, 68, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(39, 48, 68, 0.08) 1px, transparent 1px);
+        background-size: 54px 54px;
+      }
+
+      .map-route {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(120deg, transparent 18%, rgba(255, 255, 255, 0.72) 18.5%, transparent 19%),
+          linear-gradient(28deg, transparent 48%, rgba(255, 255, 255, 0.65) 48.5%, transparent 49%),
+          radial-gradient(circle at 22% 68%, rgba(255, 126, 184, 0.72), transparent 3.8%),
+          radial-gradient(circle at 42% 42%, rgba(112, 199, 255, 0.76), transparent 3.4%),
+          radial-gradient(circle at 64% 58%, rgba(255, 215, 106, 0.82), transparent 3.2%),
+          radial-gradient(circle at 78% 32%, rgba(110, 231, 200, 0.78), transparent 3.6%);
+      }
+
+      .pin {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50% 50% 50% 8px;
+        transform: rotate(-45deg);
+        border: 3px solid #fff;
+        box-shadow: 0 8px 20px rgba(39, 48, 68, 0.18);
+      }
+
+      .pin span {
+        transform: rotate(45deg);
+        font-size: 14px;
+      }
+
+      .topbar,
+      .float-panel,
+      .detail-drawer,
+      .result-list,
+      .mobile-sheet,
+      .toolbar {
+        position: absolute;
+        z-index: 2;
+      }
+
+      .topbar {
+        top: 20px;
+        left: 24px;
+        right: 24px;
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .brand-pill {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        padding: 12px 15px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 12px 34px rgba(39, 48, 68, 0.12);
+        font-weight: 900;
+      }
+
+      .brand-dot {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--pink), var(--blue));
+        box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.65);
+      }
+
+      .nav-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .icon-btn,
+      .small-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 10px 28px rgba(39, 48, 68, 0.12);
+        font-weight: 900;
+      }
+
+      .small-btn {
+        padding: 0 14px;
+        color: #a84273;
+      }
+
+      .float-panel {
+        left: 24px;
+        bottom: 24px;
+        width: min(390px, calc(100% - 48px));
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 22px 60px rgba(39, 48, 68, 0.14);
+      }
+
+      .panel-title {
+        margin: 0 0 10px;
+        font-size: 20px;
+      }
+
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .chip {
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid rgba(39, 48, 68, 0.09);
+        color: #5e677a;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .result-list {
+        right: 24px;
+        top: 90px;
+        width: 316px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .event-card {
+        display: grid;
+        grid-template-columns: 74px 1fr;
+        gap: 12px;
+        padding: 10px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid rgba(39, 48, 68, 0.1);
+        box-shadow: 0 12px 28px rgba(39, 48, 68, 0.1);
+      }
+
+      .event-card img {
+        width: 74px;
+        height: 74px;
+        object-fit: cover;
+        border-radius: 12px;
+      }
+
+      .event-card strong {
+        display: block;
+        margin-bottom: 6px;
+        line-height: 1.25;
+      }
+
+      .event-card span,
+      .mini-meta {
+        color: #667085;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .detail-drawer {
+        right: 24px;
+        bottom: 24px;
+        width: 392px;
+        border-radius: 24px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 28px 80px rgba(39, 48, 68, 0.18);
+      }
+
+      .detail-drawer img {
+        display: block;
+        width: 100%;
+        height: 170px;
+        object-fit: cover;
+      }
+
+      .drawer-body {
+        padding: 16px;
+      }
+
+      .drawer-body h3 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+
+      .video-row {
+        display: grid;
+        grid-template-columns: 86px 1fr;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .video-thumb {
+        height: 54px;
+        border-radius: 10px;
+        background:
+          linear-gradient(135deg, rgba(255, 126, 184, 0.85), rgba(112, 199, 255, 0.78)),
+          url("../images/activities/2025-11-02.png") center / cover;
+      }
+
+      .video-copy strong {
+        display: block;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .video-copy span {
+        color: #667085;
+        font-size: 12px;
+      }
+
+      .mobile-sheet {
+        left: 12px;
+        right: 12px;
+        bottom: 14px;
+        padding: 14px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        box-shadow: 0 20px 60px rgba(39, 48, 68, 0.18);
+      }
+
+      .mobile-card {
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        gap: 12px;
+      }
+
+      .mobile-card img {
+        width: 88px;
+        height: 104px;
+        border-radius: 16px;
+        object-fit: cover;
+      }
+
+      .mobile-card h3 {
+        margin: 0 0 8px;
+        font-size: 17px;
+      }
+
+      .toolbar {
+        top: 72px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        gap: 8px;
+        overflow: hidden;
+      }
+
+      .toolbar .chip {
+        white-space: nowrap;
+      }
+
+      .phone .topbar {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+      }
+
+      .phone .brand-pill {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      .phone .icon-btn {
+        min-width: 36px;
+        height: 36px;
+      }
+
+      .a .desktop,
+      .a .phone {
+        background:
+          radial-gradient(circle at 24% 22%, rgba(255, 126, 184, 0.32), transparent 24%),
+          radial-gradient(circle at 76% 12%, rgba(112, 199, 255, 0.3), transparent 26%),
+          linear-gradient(135deg, #fff7fc 0%, #edf8ff 52%, #fff8df 100%);
+      }
+
+      .a .pin {
+        background: linear-gradient(135deg, var(--pink), var(--yellow));
+      }
+
+      .a .pin:nth-child(2) {
+        background: linear-gradient(135deg, var(--blue), var(--mint));
+      }
+
+      .b .desktop,
+      .b .phone {
+        background:
+          linear-gradient(rgba(113, 78, 53, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(113, 78, 53, 0.045) 1px, transparent 1px),
+          #fffaf0;
+        background-size: 32px 32px;
+      }
+
+      .b .topbar,
+      .b .float-panel,
+      .b .result-list,
+      .b .detail-drawer,
+      .b .mobile-sheet {
+        transform: rotate(-0.4deg);
+      }
+
+      .b .brand-dot {
+        background: linear-gradient(135deg, #ff9a8b, #ffd166);
+      }
+
+      .b .pin {
+        border-radius: 12px;
+        transform: rotate(-8deg);
+        background: #ffef9e;
+      }
+
+      .b .event-card,
+      .b .detail-drawer,
+      .b .float-panel,
+      .b .mobile-sheet {
+        border-color: rgba(116, 75, 43, 0.18);
+        box-shadow: 0 18px 36px rgba(102, 67, 36, 0.12);
+      }
+
+      .b .ticket {
+        position: absolute;
+        left: 32px;
+        top: 112px;
+        z-index: 2;
+        width: 230px;
+        padding: 16px;
+        border-radius: 16px;
+        background: #fff7df;
+        border: 1px dashed rgba(116, 75, 43, 0.36);
+        box-shadow: 0 16px 36px rgba(102, 67, 36, 0.12);
+      }
+
+      .b .ticket strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .c .desktop,
+      .c .phone {
+        color: #fff;
+        background:
+          linear-gradient(180deg, rgba(16, 20, 42, 0.25), rgba(16, 20, 42, 0.88)),
+          url("../images/activities/2026-03-28.jpg") center / cover;
+      }
+
+      .c .map-grid {
+        opacity: 0.18;
+      }
+
+      .c .topbar .brand-pill,
+      .c .icon-btn,
+      .c .small-btn,
+      .c .float-panel,
+      .c .result-list .event-card,
+      .c .detail-drawer,
+      .c .mobile-sheet {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.22);
+        background: rgba(18, 23, 45, 0.66);
+        backdrop-filter: blur(18px);
+      }
+
+      .c .event-card span,
+      .c .mini-meta,
+      .c .video-copy span,
+      .c .chip {
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      .c .chip {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+
+      .c .pin {
+        background: linear-gradient(135deg, #ff6fb1, #58d4ff);
+        box-shadow: 0 0 24px rgba(255, 126, 184, 0.7);
+      }
+
+      .stage-lights {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse at 35% 18%, rgba(255, 126, 184, 0.34), transparent 32%),
+          radial-gradient(ellipse at 72% 12%, rgba(112, 199, 255, 0.32), transparent 34%);
+        mix-blend-mode: screen;
+      }
+
+      .recommend {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #1f2937;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      @media (max-width: 980px) {
+        .intro,
+        .mock-wrap {
+          grid-template-columns: 1fr;
+        }
+
+        .phone {
+          width: min(360px, 100%);
+          margin: 0 auto;
+        }
+
+        .style-head {
+          display: block;
+        }
+
+        .tag-row {
+          justify-content: flex-start;
+          margin-top: 14px;
+        }
+
+        .result-list,
+        .detail-drawer {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="intro">
+        <div>
+          <span class="eyebrow">本地设计稿 · 不影响当前代码页面</span>
+          <h1>首页 UI 风格预览</h1>
+          <p>
+            这份预览基于你现在的地图首页、活动列表、详情抽屉和推荐视频区，先做三种二次元友好的方向。
+            你可以先挑气质，等 Figma 额度恢复后再把选中的方向精修成正式设计。
+          </p>
+        </div>
+        <aside class="note">
+          <strong>我的建议</strong>
+          <p>
+            首页主风格选「星糖地图」最稳，既可爱又不会盖过地图功能；活动详情页可以吸收「梦境舞台」的氛围；
+            单个活动卡片和回忆专题可以借一点「票根手账」的质感。
+          </p>
+        </aside>
+      </section>
+
+      <section class="style-block a">
+        <header class="style-head">
+          <div>
+            <h2 class="style-title">方案 A：星糖地图 <span class="recommend">推荐首页</span></h2>
+            <p class="style-copy">
+              粉蓝糖果色、玻璃浮层、圆润地图标记。保留现在的全屏地图体验，但让它更像一个可以探索线下回忆的可爱地图。
+            </p>
+          </div>
+          <div class="tag-row">
+            <span class="tag">可爱</span>
+            <span class="tag">清爽</span>
+            <span class="tag">地图优先</span>
+            <span class="tag">适合首页</span>
+          </div>
+        </header>
+        <div class="mock-wrap">
+          <div class="desktop">
+            <div class="map-grid"></div>
+            <div class="map-route"></div>
+            <div class="pin" style="left: 22%; top: 66%"><span>杭</span></div>
+            <div class="pin" style="left: 42%; top: 40%"><span>成</span></div>
+            <div class="pin" style="left: 64%; top: 56%"><span>沪</span></div>
+            <div class="pin" style="left: 78%; top: 30%"><span>京</span></div>
+            <div class="topbar">
+              <div class="brand-pill"><span class="brand-dot"></span>枝江娱乐线下活动回忆地图</div>
+              <div class="nav-actions">
+                <button class="small-btn">活动</button>
+                <button class="icon-btn">⌕</button>
+                <button class="icon-btn">◎</button>
+              </div>
+            </div>
+            <div class="float-panel">
+              <h3 class="panel-title">正在探索线下足迹</h3>
+              <div class="chip-row">
+                <span class="chip">全部成员</span>
+                <span class="chip">2025</span>
+                <span class="chip">杭州</span>
+                <span class="chip">已收录推荐视频</span>
+              </div>
+            </div>
+            <div class="result-list">
+              <article class="event-card">
+                <img src="../images/activities/2025-11-02.png" alt="" />
+                <div><strong>乃琳杭州线下活动</strong><span>杭州 · 才八点剧场</span></div>
+              </article>
+              <article class="event-card">
+                <img src="../images/activities/2026-04-18.jpg" alt="" />
+                <div><strong>杭州巡演特别场</strong><span>活动详情与现场视频</span></div>
+              </article>
+            </div>
+            <aside class="detail-drawer">
+              <img src="../images/activities/2025-11-02.png" alt="" />
+              <div class="drawer-body">
+                <h3>乃琳杭州线下活动</h3>
+                <p class="mini-meta">2025-11-02 · 杭州 · 才八点剧场</p>
+                <div class="video-row">
+                  <div class="video-thumb"></div>
+                  <div class="video-copy"><strong>已审核推荐视频会在这里优先展示</strong><span>Bilibili · 现场直拍</span></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+          <div class="phone">
+            <div class="map-grid"></div>
+            <div class="map-route"></div>
+            <div class="pin" style="left: 36%; top: 46%"><span>杭</span></div>
+            <div class="pin" style="left: 64%; top: 30%"><span>沪</span></div>
+            <div class="topbar">
+              <div class="brand-pill"><span class="brand-dot"></span>回忆地图</div>
+              <button class="icon-btn">⌕</button>
+            </div>
+            <div class="toolbar">
+              <span class="chip">全部</span>
+              <span class="chip">嘉然</span>
+              <span class="chip">乃琳</span>
+              <span class="chip">杭州</span>
+            </div>
+            <div class="mobile-sheet">
+              <article class="mobile-card">
+                <img src="../images/activities/2025-11-02.png" alt="" />
+                <div>
+                  <h3>乃琳杭州线下活动</h3>
+                  <p class="mini-meta">推荐视频 8 条 · 已审核</p>
+                  <div class="chip-row"><span class="chip">查看详情</span><span class="chip">B站视频</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="style-block b">
+        <header class="style-head">
+          <div>
+            <h2 class="style-title">方案 B：票根手账</h2>
+            <p class="style-copy">
+              更像粉丝自己整理的线下相册。适合回忆感、纪念感强的页面，但如果全站都用会稍微弱化地图工具的效率。
+            </p>
+          </div>
+          <div class="tag-row">
+            <span class="tag">手账</span>
+            <span class="tag">票根</span>
+            <span class="tag">温暖</span>
+            <span class="tag">适合专题页</span>
+          </div>
+        </header>
+        <div class="mock-wrap">
+          <div class="desktop">
+            <div class="map-grid"></div>
+            <div class="map-route"></div>
+            <div class="pin" style="left: 22%; top: 66%"><span>杭</span></div>
+            <div class="pin" style="left: 44%; top: 42%"><span>成</span></div>
+            <div class="pin" style="left: 66%; top: 56%"><span>沪</span></div>
+            <div class="ticket">
+              <strong>今日票根</strong>
+              <p class="mini-meta">筛选城市、成员与年份，像翻一本线下活动册。</p>
+            </div>
+            <div class="topbar">
+              <div class="brand-pill"><span class="brand-dot"></span>枝江线下回忆手账</div>
+              <div class="nav-actions">
+                <button class="small-btn">年份</button>
+                <button class="icon-btn">⌕</button>
+              </div>
+            </div>
+            <div class="result-list">
+              <article class="event-card">
+                <img src="../images/activities/2025-08-24.jpg" alt="" />
+                <div><strong>上海线下活动</strong><span>活动相册 · 现场视频</span></div>
+              </article>
+              <article class="event-card">
+                <img src="../images/activities/2025-12-27.jpg" alt="" />
+                <div><strong>广州特别场</strong><span>票根式活动记录</span></div>
+              </article>
+            </div>
+            <aside class="detail-drawer">
+              <img src="../images/activities/2025-08-24.jpg" alt="" />
+              <div class="drawer-body">
+                <h3>上海线下活动</h3>
+                <p class="mini-meta">像手账页一样记录地点、时间、成员与现场视频。</p>
+                <div class="chip-row"><span class="chip">现场</span><span class="chip">返图</span><span class="chip">视频</span></div>
+              </div>
+            </aside>
+          </div>
+          <div class="phone">
+            <div class="map-grid"></div>
+            <div class="map-route"></div>
+            <div class="pin" style="left: 38%; top: 48%"><span>沪</span></div>
+            <div class="topbar">
+              <div class="brand-pill"><span class="brand-dot"></span>线下手账</div>
+              <button class="icon-btn">⌕</button>
+            </div>
+            <div class="mobile-sheet">
+              <article class="mobile-card">
+                <img src="../images/activities/2025-08-24.jpg" alt="" />
+                <div>
+                  <h3>上海线下活动</h3>
+                  <p class="mini-meta">票根、日期、场馆与推荐视频集中展示。</p>
+                  <div class="chip-row"><span class="chip">打开回忆</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="style-block c">
+        <header class="style-head">
+          <div>
+            <h2 class="style-title">方案 C：梦境舞台</h2>
+            <p class="style-copy">
+              舞台光、深色背景和高对比浮层，氛围最强。更适合活动详情、成员专题、年度回顾，不建议直接替代整个地图首页。
+            </p>
+          </div>
+          <div class="tag-row">
+            <span class="tag">舞台感</span>
+            <span class="tag">沉浸</span>
+            <span class="tag">详情页</span>
+            <span class="tag">专题页</span>
+          </div>
+        </header>
+        <div class="mock-wrap">
+          <div class="desktop">
+            <div class="stage-lights"></div>
+            <div class="map-grid"></div>
+            <div class="map-route"></div>
+            <div class="pin" style="left: 30%; top: 62%"><span>广</span></div>
+            <div class="pin" style="left: 58%; top: 42%"><span>京</span></div>
+            <div class="topbar">
+              <div class="brand-pill"><span class="brand-dot"></span>枝江娱乐线下活动回忆地图</div>
+              <div class="nav-actions">
+                <button class="small-btn">现场</button>
+                <button class="icon-btn">⌕</button>
+              </div>
+            </div>
+            <div class="float-panel">
+              <h3 class="panel-title">从地图进入一场舞台回忆</h3>
+              <div class="chip-row">
+                <span class="chip">已审核视频</span>
+                <span class="chip">活动详情</span>
+                <span class="chip">成员筛选</span>
+              </div>
+            </div>
+            <aside class="detail-drawer">
+              <img src="../images/activities/2026-03-28.jpg" alt="" />
+              <div class="drawer-body">
+                <h3>活动详情页可用这个方向</h3>
+                <p class="mini-meta">推荐视频区、现场图和活动信息更有舞台氛围。</p>
+                <div class="video-row">
+                  <div class="video-thumb"></div>
+                  <div class="video-copy"><strong>审核通过的高相关视频</strong><span>优先展示在详情页</span></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+          <div class="phone">
+            <div class="stage-lights"></div>
+            <div class="map-grid"></div>
+            <div class="pin" style="left: 54%; top: 38%"><span>京</span></div>
+            <div class="topbar">
+              <div class="brand-pill"><span class="brand-dot"></span>梦境舞台</div>
+              <button class="icon-btn">⌕</button>
+            </div>
+            <div class="mobile-sheet">
+              <article class="mobile-card">
+                <img src="../images/activities/2026-03-28.jpg" alt="" />
+                <div>
+                  <h3>活动详情</h3>
+                  <p class="mini-meta">暗色舞台感适合沉浸式浏览推荐视频。</p>
+                  <div class="chip-row"><span class="chip">查看视频</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

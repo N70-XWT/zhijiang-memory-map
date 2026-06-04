@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>枝江回忆地图 UI 追加视觉稿</title>
+    <style>
+      :root {
+        --ink: #232838;
+        --muted: #6a7282;
+        --line: rgba(35, 40, 56, 0.12);
+        --white: #ffffff;
+        --pink: #ff6fae;
+        --aqua: #48c7e8;
+        --lime: #b7ea6f;
+        --yellow: #ffd15f;
+        --coral: #ff896b;
+        --navy: #24304f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 8% 8%, rgba(255, 111, 174, 0.18), transparent 28%),
+          radial-gradient(circle at 92% 4%, rgba(72, 199, 232, 0.2), transparent 30%),
+          linear-gradient(180deg, #fff7fb 0%, #f5fbff 48%, #fffaf0 100%);
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .page {
+        width: min(1520px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 36px 0 72px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 30px;
+      }
+
+      .badge {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        width: fit-content;
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 111, 174, 0.26);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.76);
+        color: #b13e75;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      h1 {
+        margin: 15px 0 12px;
+        font-size: clamp(36px, 5vw, 72px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .hero p,
+      .style-copy,
+      .advice p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.76;
+      }
+
+      .advice {
+        padding: 20px;
+        border: 1px solid rgba(35, 40, 56, 0.1);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 20px 60px rgba(35, 40, 56, 0.1);
+      }
+
+      .advice strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+
+      .style {
+        margin-top: 30px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 30px 90px rgba(35, 40, 56, 0.13);
+      }
+
+      .style-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 20px;
+        align-items: start;
+        padding: 24px 26px;
+        border-bottom: 1px solid rgba(35, 40, 56, 0.1);
+        background: rgba(255, 255, 255, 0.64);
+      }
+
+      .style-title {
+        margin: 0 0 8px;
+        font-size: 29px;
+        line-height: 1.15;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .tag {
+        padding: 8px 11px;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid rgba(35, 40, 56, 0.1);
+        color: #667085;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .mock-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 318px;
+        gap: 22px;
+        padding: 24px;
+      }
+
+      .desktop,
+      .phone {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(35, 40, 56, 0.14);
+        background: #fff;
+        box-shadow: 0 16px 50px rgba(35, 40, 56, 0.12);
+      }
+
+      .desktop {
+        min-height: 660px;
+        border-radius: 24px;
+      }
+
+      .phone {
+        min-height: 660px;
+        border-radius: 34px;
+      }
+
+      .map-lines {
+        position: absolute;
+        inset: 0;
+        opacity: 0.65;
+        background-image:
+          linear-gradient(rgba(35, 40, 56, 0.07) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(35, 40, 56, 0.07) 1px, transparent 1px);
+        background-size: 56px 56px;
+      }
+
+      .route {
+        position: absolute;
+        inset: 0;
+      }
+
+      .topbar,
+      .side-panel,
+      .detail,
+      .bottom-panel,
+      .mobile-sheet,
+      .mobile-tabs,
+      .city-card,
+      .video-stack,
+      .filter-rail {
+        position: absolute;
+        z-index: 2;
+      }
+
+      .topbar {
+        left: 22px;
+        right: 22px;
+        top: 20px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        padding: 12px 15px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.84);
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        box-shadow: 0 12px 34px rgba(35, 40, 56, 0.12);
+        font-weight: 900;
+      }
+
+      .brand-mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--pink), var(--aqua));
+        box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.62);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .icon,
+      .text-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 42px;
+        height: 42px;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.86);
+        color: var(--ink);
+        box-shadow: 0 12px 30px rgba(35, 40, 56, 0.12);
+        font-weight: 900;
+      }
+
+      .text-btn {
+        padding: 0 15px;
+      }
+
+      .pin {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 50% 50% 50% 10px;
+        transform: rotate(-45deg);
+        border: 3px solid #fff;
+        box-shadow: 0 10px 22px rgba(35, 40, 56, 0.2);
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .pin span {
+        transform: rotate(45deg);
+      }
+
+      .side-panel {
+        right: 24px;
+        top: 88px;
+        width: 328px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .event-card {
+        display: grid;
+        grid-template-columns: 78px 1fr;
+        gap: 12px;
+        padding: 11px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(35, 40, 56, 0.1);
+        box-shadow: 0 12px 30px rgba(35, 40, 56, 0.1);
+      }
+
+      .event-card img,
+      .poster {
+        width: 78px;
+        height: 78px;
+        border-radius: 13px;
+        object-fit: cover;
+      }
+
+      .event-card strong,
+      .video-item strong,
+      .city-card strong {
+        display: block;
+        line-height: 1.28;
+      }
+
+      .event-card span,
+      .meta,
+      .video-item span,
+      .city-card span {
+        color: #667085;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .detail {
+        right: 24px;
+        bottom: 24px;
+        width: 394px;
+        overflow: hidden;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.74);
+        box-shadow: 0 26px 72px rgba(35, 40, 56, 0.18);
+      }
+
+      .detail img {
+        display: block;
+        width: 100%;
+        height: 168px;
+        object-fit: cover;
+      }
+
+      .detail-body {
+        padding: 16px;
+      }
+
+      .detail h3,
+      .mobile-sheet h3 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .chip {
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid rgba(35, 40, 56, 0.09);
+        color: #5f687a;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .mobile-sheet {
+        left: 13px;
+        right: 13px;
+        bottom: 14px;
+        padding: 14px;
+        border-radius: 26px;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        box-shadow: 0 20px 58px rgba(35, 40, 56, 0.18);
+      }
+
+      .mobile-card {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 12px;
+      }
+
+      .mobile-card img {
+        width: 92px;
+        height: 108px;
+        border-radius: 18px;
+        object-fit: cover;
+      }
+
+      .phone .topbar {
+        top: 13px;
+        left: 13px;
+        right: 13px;
+      }
+
+      .phone .brand {
+        max-width: 210px;
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      .mobile-tabs {
+        top: 74px;
+        left: 13px;
+        right: 13px;
+        display: flex;
+        gap: 8px;
+        overflow: hidden;
+      }
+
+      .mobile-tabs .chip {
+        white-space: nowrap;
+      }
+
+      .game .desktop,
+      .game .phone {
+        background:
+          radial-gradient(circle at 16% 20%, rgba(255, 209, 95, 0.28), transparent 22%),
+          radial-gradient(circle at 82% 14%, rgba(72, 199, 232, 0.28), transparent 24%),
+          linear-gradient(135deg, #fff7d8 0%, #effcff 44%, #fff2fb 100%);
+      }
+
+      .game .topbar .brand,
+      .game .event-card,
+      .game .detail,
+      .game .mobile-sheet {
+        border: 2px solid rgba(35, 40, 56, 0.16);
+        box-shadow: 6px 6px 0 rgba(35, 40, 56, 0.12);
+      }
+
+      .game .brand-mark {
+        border-radius: 8px;
+        background: linear-gradient(135deg, #ff6fae, #ffd15f);
+      }
+
+      .game .pin {
+        border-radius: 12px;
+        transform: rotate(-8deg);
+        background: #ffd15f;
+        color: #232838;
+      }
+
+      .game .score-card {
+        position: absolute;
+        left: 24px;
+        bottom: 24px;
+        z-index: 2;
+        width: 340px;
+        padding: 18px;
+        border: 2px solid rgba(35, 40, 56, 0.18);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 6px 6px 0 rgba(35, 40, 56, 0.12);
+      }
+
+      .score-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .score-title strong {
+        font-size: 20px;
+      }
+
+      .meter {
+        height: 12px;
+        overflow: hidden;
+        border: 2px solid rgba(35, 40, 56, 0.18);
+        border-radius: 999px;
+        background: #fff;
+      }
+
+      .meter span {
+        display: block;
+        width: 72%;
+        height: 100%;
+        background: linear-gradient(90deg, #ff6fae, #ffd15f, #48c7e8);
+      }
+
+      .postcard .desktop,
+      .postcard .phone {
+        background:
+          linear-gradient(rgba(36, 48, 79, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(36, 48, 79, 0.04) 1px, transparent 1px),
+          #fffdf7;
+        background-size: 34px 34px;
+      }
+
+      .postcard .photo-strip {
+        position: absolute;
+        left: 26px;
+        bottom: 26px;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(3, 108px);
+        gap: 12px;
+      }
+
+      .postcard .photo {
+        padding: 8px 8px 28px;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 16px 36px rgba(54, 39, 30, 0.14);
+        transform: rotate(-4deg);
+      }
+
+      .postcard .photo:nth-child(2) {
+        transform: rotate(3deg);
+      }
+
+      .postcard .photo:nth-child(3) {
+        transform: rotate(-1deg);
+      }
+
+      .postcard .photo img {
+        display: block;
+        width: 92px;
+        height: 92px;
+        border-radius: 10px;
+        object-fit: cover;
+      }
+
+      .postcard .city-card {
+        left: 28px;
+        top: 112px;
+        width: 300px;
+        padding: 18px;
+        border-radius: 24px;
+        background: #fff;
+        border: 1px solid rgba(36, 48, 79, 0.12);
+        box-shadow: 0 18px 42px rgba(54, 39, 30, 0.12);
+      }
+
+      .postcard .city-card::after {
+        content: "";
+        position: absolute;
+        right: 18px;
+        top: 18px;
+        width: 58px;
+        height: 58px;
+        border: 2px dashed rgba(255, 137, 107, 0.6);
+        border-radius: 50%;
+      }
+
+      .postcard .pin {
+        background: #ff896b;
+        color: #fff;
+      }
+
+      .postcard .brand-mark {
+        background: linear-gradient(135deg, #ff896b, #48c7e8);
+      }
+
+      .library .desktop,
+      .library .phone {
+        background:
+          linear-gradient(120deg, rgba(183, 234, 111, 0.16), transparent 32%),
+          linear-gradient(210deg, rgba(72, 199, 232, 0.16), transparent 34%),
+          #f8fbf8;
+      }
+
+      .library .shell {
+        position: absolute;
+        inset: 18px;
+        display: grid;
+        grid-template-columns: 232px 1fr 330px;
+        gap: 16px;
+        z-index: 2;
+      }
+
+      .library .left-nav,
+      .library .map-pane,
+      .library .review-pane {
+        overflow: hidden;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.84);
+        border: 1px solid rgba(35, 40, 56, 0.1);
+        box-shadow: 0 14px 36px rgba(35, 40, 56, 0.09);
+      }
+
+      .library .left-nav {
+        padding: 18px;
+      }
+
+      .library .left-nav h3,
+      .library .review-pane h3 {
+        margin: 0 0 14px;
+        font-size: 20px;
+      }
+
+      .nav-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 14px;
+        color: #596274;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .nav-item.active {
+        background: #eaffd3;
+        color: #365314;
+      }
+
+      .library .map-pane {
+        position: relative;
+        background: #eef8f3;
+      }
+
+      .library .review-pane {
+        padding: 16px;
+      }
+
+      .video-stack {
+        position: static;
+        display: grid;
+        gap: 10px;
+      }
+
+      .video-item {
+        display: grid;
+        grid-template-columns: 78px 1fr;
+        gap: 10px;
+        padding: 10px;
+        border-radius: 15px;
+        background: #f8fbf8;
+        border: 1px solid rgba(35, 40, 56, 0.08);
+      }
+
+      .video-thumb {
+        width: 78px;
+        height: 52px;
+        border-radius: 10px;
+        background:
+          linear-gradient(135deg, rgba(72, 199, 232, 0.65), rgba(183, 234, 111, 0.68)),
+          url("../images/activities/2026-04-18.jpg") center / cover;
+      }
+
+      .library .phone .shell {
+        inset: 12px;
+        display: block;
+      }
+
+      .library .phone .left-nav,
+      .library .phone .review-pane {
+        display: none;
+      }
+
+      .library .phone .map-pane {
+        position: absolute;
+        inset: 0;
+      }
+
+      .library .phone .mobile-sheet {
+        background: rgba(255, 255, 255, 0.94);
+      }
+
+      @media (max-width: 1080px) {
+        .hero,
+        .mock-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .phone {
+          width: min(370px, 100%);
+          margin: 0 auto;
+        }
+
+        .side-panel,
+        .detail {
+          display: none;
+        }
+
+        .style-head {
+          grid-template-columns: 1fr;
+        }
+
+        .tag-row {
+          justify-content: flex-start;
+        }
+
+        .library .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .library .left-nav,
+        .library .review-pane {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <span class="badge">追加视觉稿 · 三个新方向</span>
+          <h1>再试三种首页气质</h1>
+          <p>
+            这三套比上一版更偏产品化：一个强调可爱互动，一个强调城市旅行回忆，一个强调清爽可维护。
+            都保留你现阶段的核心结构：地图、筛选、活动列表、详情、推荐视频。
+          </p>
+        </div>
+        <aside class="advice">
+          <strong>这次怎么选</strong>
+          <p>
+            如果你想要“二次元可爱”最明显，选 D；如果想要“线下活动回忆感”最强，选 E；
+            如果想要后续开发最稳、后台和前台都统一，选 F。
+          </p>
+        </aside>
+      </section>
+
+      <section class="style game">
+        <header class="style-head">
+          <div>
+            <h2 class="style-title">方案 D：应援游戏机</h2>
+            <p class="style-copy">
+              像打开一个可爱的应援任务面板：更有游戏感、按钮感和收集感。适合年轻、活泼、二次元气质更强的首页。
+            </p>
+          </div>
+          <div class="tag-row">
+            <span class="tag">游戏化</span>
+            <span class="tag">高活力</span>
+            <span class="tag">收集感</span>
+            <span class="tag">适合首页</span>
+          </div>
+        </header>
+        <div class="mock-grid">
+          <div class="desktop">
+            <div class="map-lines"></div>
+            <svg class="route" viewBox="0 0 900 620" preserveAspectRatio="none">
+              <path d="M88 520 C230 380 355 430 468 310 S675 250 806 180" fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round" opacity=".82"/>
+              <path d="M88 520 C230 380 355 430 468 310 S675 250 806 180" fill="none" stroke="#48c7e8" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 16" opacity=".8"/>
+            </svg>
+            <div class="pin" style="left: 16%; top: 75%"><span>杭</span></div>
+            <div class="pin" style="left: 45%; top: 45%; background: #48c7e8"><span>成</span></div>
+            <div class="pin" style="left: 69%; top: 40%; background: #ff6fae"><span>沪</span></div>
+            <div class="topbar">
+              <div class="brand"><span class="brand-mark"></span>枝江应援地图</div>
+              <div class="actions">
+                <button class="text-btn">任务</button>
+                <button class="icon">⌕</button>
+                <button class="icon">◎</button>
+              </div>
+            </div>
+            <aside class="score-card">
+              <div class="score-title">
+                <strong>回忆收集进度</strong>
+                <span class="meta">12 场活动</span>
+              </div>
+              <div class="meter"><span></span></div>
+              <div class="chips">
+                <span class="chip">已审核视频</span>
+                <span class="chip">杭州</span>
+                <span class="chip">乃琳</span>
+              </div>
+            </aside>
+            <div class="side-panel">
+              <article class="event-card">
+                <img src="../images/activities/2025-11-02.png" alt="" />
+                <div><strong>乃琳杭州线下活动</strong><span>高相关推荐视频 8 条</span></div>
+              </article>
+              <article class="event-card">
+                <img src="../images/activities/2025-09-14.png" alt="" />
+                <div><strong>成都线下活动</strong><span>城市足迹已点亮</span></div>
+              </article>
+            </div>
+            <aside class="detail">
+              <img src="../images/activities/2025-11-02.png" alt="" />
+              <div class="detail-body">
+                <h3>乃琳杭州线下活动</h3>
+                <p class="meta">像任务卡一样快速查看活动和推荐视频。</p>
+                <div class="chips"><span class="chip">打开详情</span><span class="chip">看视频</span></div>
+              </div>
+            </aside>
+          </div>
+          <div class="phone">
+            <div class="map-lines"></div>
+            <svg class="route" viewBox="0 0 320 660" preserveAspectRatio="none">
+              <path d="M54 520 C110 380 180 430 236 250" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" opacity=".82"/>
+              <path d="M54 520 C110 380 180 430 236 250" fill="none" stroke="#ff6fae" stroke-width="5" stroke-linecap="round" stroke-dasharray="9 14"/>
+            </svg>
+            <div class="pin" style="left: 34%; top: 47%"><span>杭</span></div>
+            <div class="topbar">
+              <div class="brand"><span class="brand-mark"></span>应援地图</div>
+              <button class="icon">⌕</button>
+            </div>
+            <div class="mobile-tabs">
+              <span class="chip">任务</span>
+              <span class="chip">活动</span>
+              <span class="chip">视频</span>
+            </div>
+            <div class="mobile-sheet">
+              <article class="mobile-card">
+                <img src="../images/activities/2025-11-02.png" alt="" />
+                <div>
+                  <h3>杭州任务已点亮</h3>
+                  <p class="meta">活动详情、现场视频和城市足迹集中展示。</p>
+                  <div class="chips"><span class="chip">进入活动</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="style postcard">
+        <header class="style-head">
+          <div>
+            <h2 class="style-title">方案 E：城市明信片</h2>
+            <p class="style-copy">
+              把线下活动当成一张张城市明信片：城市、场馆、照片和视频更有旅行记忆感。很适合“回忆地图”这个名字。
+            </p>
+          </div>
+          <div class="tag-row">
+            <span class="tag">城市感</span>
+            <span class="tag">明信片</span>
+            <span class="tag">温柔</span>
+            <span class="tag">活动回忆</span>
+          </div>
+        </header>
+        <div class="mock-grid">
+          <div class="desktop">
+            <div class="map-lines"></div>
+            <svg class="route" viewBox="0 0 900 620" preserveAspectRatio="none">
+              <path d="M160 470 C260 330 405 360 500 250 S690 255 815 150" fill="none" stroke="#f6d8bf" stroke-width="20" stroke-linecap="round"/>
+              <path d="M160 470 C260 330 405 360 500 250 S690 255 815 150" fill="none" stroke="#ff896b" stroke-width="4" stroke-dasharray="6 12" stroke-linecap="round"/>
+            </svg>
+            <div class="pin" style="left: 24%; top: 65%"><span>杭</span></div>
+            <div class="pin" style="left: 54%; top: 36%; background: #48c7e8"><span>沪</span></div>
+            <div class="pin" style="left: 78%; top: 24%; background: #ffd15f; color: #232838"><span>京</span></div>
+            <div class="topbar">
+              <div class="brand"><span class="brand-mark"></span>城市线下回忆地图</div>
+              <div class="actions">
+                <button class="text-btn">城市</button>
+                <button class="icon">⌕</button>
+              </div>
+            </div>
+            <aside class="city-card">
+              <strong>杭州 · 才八点剧场</strong>
+              <span>把同城活动、场馆和审核视频做成一张城市明信片。</span>
+              <div class="chips"><span class="chip">2025</span><span class="chip">乃琳</span><span class="chip">现场</span></div>
+            </aside>
+            <div class="photo-strip">
+              <div class="photo"><img src="../images/activities/2025-11-02.png" alt="" /></div>
+              <div class="photo"><img src="../images/activities/2026-04-18.jpg" alt="" /></div>
+              <div class="photo"><img src="../images/activities/2025-08-24.jpg" alt="" /></div>
+            </div>
+            <div class="side-panel">
+              <article class="event-card">
+                <img src="../images/activities/2026-04-18.jpg" alt="" />
+                <div><strong>杭州巡演特别场</strong><span>城市明信片式活动卡</span></div>
+              </article>
+              <article class="event-card">
+                <img src="../images/activities/2025-08-24.jpg" alt="" />
+                <div><strong>上海线下活动</strong><span>同城回忆与视频</span></div>
+              </article>
+            </div>
+            <aside class="detail">
+              <img src="../images/activities/2026-04-18.jpg" alt="" />
+              <div class="detail-body">
+                <h3>杭州巡演特别场</h3>
+                <p class="meta">适合让每个活动都像可收藏的城市卡片。</p>
+                <div class="chips"><span class="chip">地图定位</span><span class="chip">推荐视频</span></div>
+              </div>
+            </aside>
+          </div>
+          <div class="phone">
+            <div class="map-lines"></div>
+            <div class="pin" style="left: 42%; top: 44%"><span>杭</span></div>
+            <div class="topbar">
+              <div class="brand"><span class="brand-mark"></span>城市明信片</div>
+              <button class="icon">⌕</button>
+            </div>
+            <div class="mobile-tabs">
+              <span class="chip">杭州</span>
+              <span class="chip">上海</span>
+              <span class="chip">广州</span>
+            </div>
+            <div class="mobile-sheet">
+              <article class="mobile-card">
+                <img src="../images/activities/2026-04-18.jpg" alt="" />
+                <div>
+                  <h3>杭州巡演特别场</h3>
+                  <p class="meta">城市、日期、场馆与推荐视频像明信片一样呈现。</p>
+                  <div class="chips"><span class="chip">收藏回忆</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="style library">
+        <header class="style-head">
+          <div>
+            <h2 class="style-title">方案 F：清爽资料库</h2>
+            <p class="style-copy">
+              更像一个可长期维护的活动资料库：前台、后台审核、视频池都能统一成同一套设计语言。可爱感更克制，但最耐用。
+            </p>
+          </div>
+          <div class="tag-row">
+            <span class="tag">清爽</span>
+            <span class="tag">资料库</span>
+            <span class="tag">可维护</span>
+            <span class="tag">适合全站</span>
+          </div>
+        </header>
+        <div class="mock-grid">
+          <div class="desktop">
+            <div class="shell">
+              <aside class="left-nav">
+                <h3>活动索引</h3>
+                <div class="nav-item active"><span>全部活动</span><span>12</span></div>
+                <div class="nav-item"><span>杭州</span><span>2</span></div>
+                <div class="nav-item"><span>上海</span><span>2</span></div>
+                <div class="nav-item"><span>广州</span><span>1</span></div>
+                <div class="nav-item"><span>北京</span><span>1</span></div>
+              </aside>
+              <section class="map-pane">
+                <div class="map-lines"></div>
+                <svg class="route" viewBox="0 0 560 620" preserveAspectRatio="none">
+                  <path d="M92 500 C188 370 268 420 334 286 S456 230 500 160" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" opacity=".86"/>
+                  <path d="M92 500 C188 370 268 420 334 286 S456 230 500 160" fill="none" stroke="#48c7e8" stroke-width="5" stroke-linecap="round"/>
+                </svg>
+                <div class="pin" style="left: 22%; top: 70%; background: #b7ea6f"><span>杭</span></div>
+                <div class="pin" style="left: 56%; top: 42%; background: #48c7e8"><span>沪</span></div>
+                <div class="pin" style="left: 76%; top: 30%; background: #ffd15f"><span>京</span></div>
+              </section>
+              <aside class="review-pane">
+                <h3>活动详情</h3>
+                <article class="event-card" style="grid-template-columns: 92px 1fr; margin-bottom: 12px">
+                  <img class="poster" src="../images/activities/2026-04-18.jpg" alt="" />
+                  <div><strong>杭州巡演特别场</strong><span>2026-04-18 · 推荐视频 8 条</span></div>
+                </article>
+                <div class="video-stack">
+                  <article class="video-item">
+                    <div class="video-thumb"></div>
+                    <div><strong>已审核高相关视频</strong><span>优先展示</span></div>
+                  </article>
+                  <article class="video-item">
+                    <div class="video-thumb"></div>
+                    <div><strong>活动现场补充</strong><span>补充推荐</span></div>
+                  </article>
+                </div>
+                <div class="chips"><span class="chip">查看详情</span><span class="chip">筛选视频</span></div>
+              </aside>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="shell">
+              <section class="map-pane">
+                <div class="map-lines"></div>
+                <div class="pin" style="left: 42%; top: 45%; background: #b7ea6f"><span>杭</span></div>
+              </section>
+            </div>
+            <div class="topbar">
+              <div class="brand"><span class="brand-mark"></span>活动资料库</div>
+              <button class="icon">⌕</button>
+            </div>
+            <div class="mobile-tabs">
+              <span class="chip">全部</span>
+              <span class="chip">城市</span>
+              <span class="chip">成员</span>
+            </div>
+            <div class="mobile-sheet">
+              <article class="mobile-card">
+                <img src="../images/activities/2026-04-18.jpg" alt="" />
+                <div>
+                  <h3>杭州巡演特别场</h3>
+                  <p class="meta">清爽信息架构，适合长期维护活动和推荐视频。</p>
+                  <div class="chips"><span class="chip">打开详情</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

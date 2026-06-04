@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2300" viewBox="0 0 1600 2300">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff7fb"/>
+      <stop offset="0.48" stop-color="#f0fbff"/>
+      <stop offset="1" stop-color="#fffaf0"/>
+    </linearGradient>
+    <linearGradient id="candy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7eb8"/>
+      <stop offset="0.55" stop-color="#70c7ff"/>
+      <stop offset="1" stop-color="#ffd76a"/>
+    </linearGradient>
+    <linearGradient id="stage" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15172f"/>
+      <stop offset="0.55" stop-color="#25204b"/>
+      <stop offset="1" stop-color="#090b18"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="30" flood-color="#273044" flood-opacity="0.16"/>
+    </filter>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0V42" fill="none" stroke="#273044" stroke-opacity="0.08" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="2300" fill="url(#bg)"/>
+  <circle cx="170" cy="150" r="240" fill="#ff7eb8" opacity="0.18"/>
+  <circle cx="1430" cy="160" r="270" fill="#70c7ff" opacity="0.2"/>
+
+  <text x="90" y="120" font-family="Microsoft YaHei, sans-serif" font-size="56" font-weight="800" fill="#273044">枝江回忆地图 UI 风格预览</text>
+  <text x="92" y="172" font-family="Microsoft YaHei, sans-serif" font-size="25" fill="#667085">基于当前地图首页、活动详情抽屉、推荐视频区做的本地视觉方向稿</text>
+
+  <g transform="translate(90 250)">
+    <rect width="1420" height="560" rx="34" fill="#ffffff" opacity="0.78" stroke="#273044" stroke-opacity="0.12" filter="url(#shadow)"/>
+    <text x="38" y="70" font-family="Microsoft YaHei, sans-serif" font-size="38" font-weight="800" fill="#273044">方案 A：星糖地图</text>
+    <rect x="310" y="36" width="120" height="42" rx="21" fill="#1f2937"/>
+    <text x="338" y="64" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">推荐</text>
+    <text x="38" y="112" font-family="Microsoft YaHei, sans-serif" font-size="22" fill="#667085">粉蓝糖果色、玻璃浮层、圆润地图标记。适合直接做首页主方向。</text>
+
+    <rect x="38" y="150" width="910" height="370" rx="26" fill="#f4fbff" stroke="#273044" stroke-opacity="0.12"/>
+    <rect x="38" y="150" width="910" height="370" rx="26" fill="url(#grid)" opacity="0.85"/>
+    <path d="M130 420 C260 330, 360 380, 470 280 S710 260, 840 210" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" opacity="0.78"/>
+    <g fill="url(#candy)" stroke="#ffffff" stroke-width="5">
+      <path d="M206 373a24 24 0 1 0-34 34l17 17 17-17a24 24 0 0 0 0-34z"/>
+      <path d="M456 267a24 24 0 1 0-34 34l17 17 17-17a24 24 0 0 0 0-34z"/>
+      <path d="M725 268a24 24 0 1 0-34 34l17 17 17-17a24 24 0 0 0 0-34z"/>
+    </g>
+    <rect x="70" y="180" width="360" height="58" rx="29" fill="#ffffff" opacity="0.86"/>
+    <circle cx="100" cy="209" r="18" fill="url(#candy)"/>
+    <text x="128" y="218" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#273044">枝江娱乐线下活动回忆地图</text>
+    <rect x="610" y="190" width="270" height="72" rx="18" fill="#ffffff" opacity="0.88"/>
+    <text x="632" y="220" font-family="Microsoft YaHei, sans-serif" font-size="19" font-weight="800" fill="#273044">乃琳杭州线下活动</text>
+    <text x="632" y="246" font-family="Microsoft YaHei, sans-serif" font-size="16" fill="#667085">杭州 · 才八点剧场</text>
+    <rect x="70" y="410" width="310" height="70" rx="22" fill="#ffffff" opacity="0.86"/>
+    <text x="94" y="442" font-family="Microsoft YaHei, sans-serif" font-size="21" font-weight="800" fill="#273044">正在探索线下足迹</text>
+    <text x="94" y="468" font-family="Microsoft YaHei, sans-serif" font-size="16" fill="#667085">成员、城市、年份与视频推荐</text>
+
+    <rect x="1010" y="150" width="320" height="370" rx="34" fill="#f4fbff" stroke="#273044" stroke-opacity="0.12"/>
+    <rect x="1010" y="150" width="320" height="370" rx="34" fill="url(#grid)" opacity="0.75"/>
+    <rect x="1030" y="170" width="178" height="46" rx="23" fill="#ffffff" opacity="0.9"/>
+    <circle cx="1055" cy="193" r="14" fill="url(#candy)"/>
+    <text x="1076" y="200" font-family="Microsoft YaHei, sans-serif" font-size="17" font-weight="800" fill="#273044">回忆地图</text>
+    <path d="M1162 268a24 24 0 1 0-34 34l17 17 17-17a24 24 0 0 0 0-34z" fill="url(#candy)" stroke="#ffffff" stroke-width="5"/>
+    <rect x="1030" y="400" width="280" height="88" rx="26" fill="#ffffff" opacity="0.9"/>
+    <text x="1054" y="438" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#273044">杭州线下活动</text>
+    <text x="1054" y="464" font-family="Microsoft YaHei, sans-serif" font-size="16" fill="#667085">已审核推荐视频优先展示</text>
+  </g>
+
+  <g transform="translate(90 890)">
+    <rect width="1420" height="560" rx="34" fill="#fffaf0" stroke="#7c5133" stroke-opacity="0.16" filter="url(#shadow)"/>
+    <text x="38" y="70" font-family="Microsoft YaHei, sans-serif" font-size="38" font-weight="800" fill="#2f2a24">方案 B：票根手账</text>
+    <text x="38" y="112" font-family="Microsoft YaHei, sans-serif" font-size="22" fill="#7a685d">手账纸张、票根卡片、相册质感。适合活动专题和回忆页。</text>
+    <rect x="38" y="150" width="910" height="370" rx="26" fill="#fff7df" stroke="#7c5133" stroke-opacity="0.16"/>
+    <rect x="38" y="150" width="910" height="370" rx="26" fill="url(#grid)" opacity="0.5"/>
+    <rect x="90" y="196" width="270" height="120" rx="20" fill="#fff2bc" stroke="#7c5133" stroke-opacity="0.24" stroke-dasharray="8 8" transform="rotate(-4 225 256)"/>
+    <text x="118" y="238" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="800" fill="#2f2a24" transform="rotate(-4 225 256)">今日票根</text>
+    <text x="118" y="270" font-family="Microsoft YaHei, sans-serif" font-size="17" fill="#7a685d" transform="rotate(-4 225 256)">翻一页线下回忆</text>
+    <rect x="560" y="190" width="320" height="90" rx="18" fill="#ffffff" opacity="0.9"/>
+    <text x="586" y="228" font-family="Microsoft YaHei, sans-serif" font-size="21" font-weight="800" fill="#2f2a24">上海线下活动</text>
+    <text x="586" y="256" font-family="Microsoft YaHei, sans-serif" font-size="16" fill="#7a685d">活动相册 · 现场视频</text>
+    <rect x="560" y="310" width="320" height="90" rx="18" fill="#ffffff" opacity="0.9"/>
+    <text x="586" y="348" font-family="Microsoft YaHei, sans-serif" font-size="21" font-weight="800" fill="#2f2a24">广州特别场</text>
+    <text x="586" y="376" font-family="Microsoft YaHei, sans-serif" font-size="16" fill="#7a685d">票根式活动记录</text>
+    <rect x="1010" y="150" width="320" height="370" rx="34" fill="#fff7df" stroke="#7c5133" stroke-opacity="0.16"/>
+    <rect x="1040" y="390" width="260" height="84" rx="24" fill="#ffffff" opacity="0.9"/>
+    <text x="1064" y="426" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#2f2a24">线下手账</text>
+    <text x="1064" y="454" font-family="Microsoft YaHei, sans-serif" font-size="16" fill="#7a685d">票根、场馆、视频</text>
+  </g>
+
+  <g transform="translate(90 1530)">
+    <rect width="1420" height="560" rx="34" fill="url(#stage)" filter="url(#shadow)"/>
+    <circle cx="430" cy="100" r="250" fill="#ff7eb8" opacity="0.2"/>
+    <circle cx="980" cy="70" r="270" fill="#70c7ff" opacity="0.18"/>
+    <text x="38" y="70" font-family="Microsoft YaHei, sans-serif" font-size="38" font-weight="800" fill="#ffffff">方案 C：梦境舞台</text>
+    <text x="38" y="112" font-family="Microsoft YaHei, sans-serif" font-size="22" fill="#d7dcff">舞台光、深色背景、高对比浮层。适合活动详情页和专题页。</text>
+    <rect x="38" y="150" width="910" height="370" rx="26" fill="#12172d" opacity="0.72" stroke="#ffffff" stroke-opacity="0.18"/>
+    <rect x="38" y="150" width="910" height="370" rx="26" fill="url(#grid)" opacity="0.24"/>
+    <path d="M150 410 C260 280, 460 360, 570 250 S760 228, 850 210" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" opacity="0.25"/>
+    <path d="M302 348a24 24 0 1 0-34 34l17 17 17-17a24 24 0 0 0 0-34z" fill="url(#candy)" stroke="#ffffff" stroke-width="5"/>
+    <path d="M600 266a24 24 0 1 0-34 34l17 17 17-17a24 24 0 0 0 0-34z" fill="url(#candy)" stroke="#ffffff" stroke-width="5"/>
+    <rect x="70" y="180" width="370" height="58" rx="29" fill="#11182f" opacity="0.82" stroke="#ffffff" stroke-opacity="0.16"/>
+    <circle cx="100" cy="209" r="18" fill="url(#candy)"/>
+    <text x="128" y="218" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">枝江娱乐线下活动回忆地图</text>
+    <rect x="600" y="348" width="300" height="120" rx="24" fill="#12172d" opacity="0.82" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="628" y="392" font-family="Microsoft YaHei, sans-serif" font-size="23" font-weight="800" fill="#ffffff">活动详情页方向</text>
+    <text x="628" y="424" font-family="Microsoft YaHei, sans-serif" font-size="17" fill="#d7dcff">推荐视频和现场图更沉浸</text>
+    <rect x="1010" y="150" width="320" height="370" rx="34" fill="#11182f" opacity="0.82" stroke="#ffffff" stroke-opacity="0.18"/>
+    <rect x="1040" y="390" width="260" height="84" rx="24" fill="#12172d" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="1064" y="426" font-family="Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">梦境舞台</text>
+    <text x="1064" y="454" font-family="Microsoft YaHei, sans-serif" font-size="16" fill="#d7dcff">更适合详情与专题</text>
+  </g>
+
+  <g transform="translate(90 2165)">
+    <text x="0" y="0" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#273044">推荐组合</text>
+    <text x="0" y="42" font-family="Microsoft YaHei, sans-serif" font-size="22" fill="#667085">首页采用方案 A，活动详情页吸收方案 C，活动卡片和回忆专题借用方案 B 的票根元素。</text>
+  </g>
+</svg>
