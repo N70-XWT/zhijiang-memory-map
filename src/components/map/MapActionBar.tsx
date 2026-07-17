@@ -14,8 +14,12 @@ type MapActionBarProps = {
   onToggleList: () => void
 }
 
-const buttonClassName =
-  'group inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-orange-100 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0'
+const buttonBaseClassName =
+  'group inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold shadow-sm transition duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0'
+
+const neutralButtonClassName = `${buttonBaseClassName} border-orange-100 bg-white text-slate-700 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800`
+
+const activeListButtonClassName = `${buttonBaseClassName} border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 hover:text-white`
 
 export default function MapActionBar({
   canFocusSelected,
@@ -39,7 +43,7 @@ export default function MapActionBar({
           type="button"
           onClick={onFitAll}
           disabled={!hasActivities}
-          className={buttonClassName}
+          className={neutralButtonClassName}
           aria-label="在地图中显示全部活动"
         >
           <UiIcon name="expand" className="h-4 w-4 text-orange-600" />
@@ -49,7 +53,7 @@ export default function MapActionBar({
           type="button"
           onClick={onFocusSelected}
           disabled={!canFocusSelected}
-          className={buttonClassName}
+          className={neutralButtonClassName}
           aria-label="定位当前选中的活动"
         >
           <UiIcon name="focus" className="h-4 w-4 text-blue-600" />
@@ -59,7 +63,7 @@ export default function MapActionBar({
           type="button"
           onClick={onCloseDetail}
           disabled={!canCloseDetail}
-          className={buttonClassName}
+          className={neutralButtonClassName}
           aria-label="收起活动详情"
         >
           <UiIcon name="collapse" className="h-4 w-4 text-orange-600" />
@@ -68,9 +72,7 @@ export default function MapActionBar({
         <button
           type="button"
           onClick={onToggleList}
-          className={`${buttonClassName} ${
-            isListOpen ? 'border-blue-200 bg-blue-600 text-white hover:bg-blue-700 hover:text-white' : ''
-          }`}
+          className={isListOpen ? activeListButtonClassName : neutralButtonClassName}
           aria-pressed={isListOpen}
         >
           <UiIcon name="list" className={`h-4 w-4 ${isListOpen ? 'text-white' : 'text-blue-600'}`} />

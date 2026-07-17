@@ -365,6 +365,7 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
 
   const handleToggleActivityList = useCallback(() => {
     setIsActivityListOpen((value) => !value)
+    setIsFilterCollapsed(true)
   }, [])
 
   const handleCloseActivityList = useCallback(() => {
@@ -389,6 +390,7 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
 
   const handleToggleFilterCollapsed = useCallback(() => {
     setIsFilterCollapsed((previous) => !previous)
+    setIsActivityListOpen(false)
   }, [])
 
   const handleHideFilterBar = useCallback(() => {
@@ -397,7 +399,10 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
 
   const handleShowFilterBar = useCallback(() => {
     setIsFilterHidden(false)
-  }, [])
+    if (isActivityListOpen) {
+      setIsFilterCollapsed(true)
+    }
+  }, [isActivityListOpen])
 
   const activityParam = searchParams.get('activity')
 

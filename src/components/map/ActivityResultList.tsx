@@ -22,7 +22,7 @@ export default function ActivityResultList({
 
   return (
     <aside
-      className={`absolute inset-x-2 bottom-[132px] z-[405] max-h-[48vh] transform overflow-hidden rounded-[24px] border border-orange-200/80 bg-[#fffaf5]/95 shadow-[0_24px_60px_rgba(124,45,18,0.18)] backdrop-blur-md transition-all duration-200 will-change-transform [contain:layout_paint] sm:bottom-[74px] md:bottom-auto md:left-auto md:right-5 md:top-[248px] md:w-[380px] md:max-h-[calc(100vh-17rem)] ${
+      className={`absolute inset-x-2 bottom-[132px] z-[405] max-h-[48vh] transform overflow-hidden rounded-[24px] border border-orange-200/80 bg-[#fffaf5]/95 shadow-[0_24px_60px_rgba(124,45,18,0.18)] backdrop-blur-md transition-all duration-200 will-change-transform [contain:layout_paint] sm:bottom-[74px] md:bottom-auto md:left-auto md:right-5 md:top-[168px] md:w-[380px] md:max-h-[calc(100vh-17rem)] ${
         isOpen
           ? 'pointer-events-auto translate-y-0 opacity-100'
           : 'pointer-events-none translate-y-3 opacity-0 md:translate-x-3 md:translate-y-0'
