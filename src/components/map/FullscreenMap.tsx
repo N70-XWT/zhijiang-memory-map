@@ -57,9 +57,9 @@ const setOptionalQueryParam = (params: URLSearchParams, key: string, value: stri
 function NoticeOverlay({ title, description }: NoticeOverlayProps) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-6 z-[420] flex justify-center px-4">
-      <div className="pointer-events-auto w-full max-w-xl rounded-xl border border-slate-300/90 bg-slate-50/95 px-4 py-3 text-center shadow-md backdrop-blur-md">
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="mt-1 text-xs text-slate-600">{description}</p>
+      <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-orange-200/80 bg-[#fffaf5]/95 px-4 py-3 text-center shadow-[0_14px_38px_rgba(124,45,18,0.15)] backdrop-blur-md">
+        <p className="text-sm font-extrabold text-slate-950">{title}</p>
+        <p className="mt-1 text-xs text-slate-500">{description}</p>
       </div>
     </div>
   )
@@ -72,7 +72,7 @@ function InvalidQueryNotice({ compactTop }: { compactTop: boolean }) {
         compactTop ? 'top-[104px] md:top-[112px]' : 'top-[310px] md:top-[152px]'
       }`}
     >
-      <div className="pointer-events-auto rounded-lg border border-amber-300 bg-amber-50/95 px-3 py-2 text-xs text-amber-800 shadow-sm backdrop-blur-md">
+      <div className="pointer-events-auto rounded-xl border border-orange-300 bg-orange-50/95 px-3.5 py-2.5 text-xs font-semibold text-orange-900 shadow-sm backdrop-blur-md">
         URL 中的活动参数无效，已忽略该活动。
       </div>
     </div>

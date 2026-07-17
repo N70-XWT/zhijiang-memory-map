@@ -454,8 +454,11 @@ function AmapViewportComponent({
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
       {loadError ? (
-        <div className="absolute inset-0 z-[360] flex items-center justify-center bg-slate-100 px-4 text-center text-sm text-slate-700">
-          {loadError}
+        <div className="absolute inset-0 z-[360] flex items-center justify-center bg-[#fff7ed] px-4 text-center">
+          <div className="max-w-md rounded-[24px] border border-orange-200 bg-white px-6 py-5 shadow-[0_20px_60px_rgba(124,45,18,0.14)]">
+            <p className="text-sm font-extrabold text-slate-950">地图暂时无法加载</p>
+            <p className="mt-2 text-xs leading-5 text-slate-600">{loadError}</p>
+          </div>
         </div>
       ) : null}
     </div>

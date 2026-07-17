@@ -1,5 +1,7 @@
 'use client'
 
+import UiIcon from '@/components/common/UiIcon'
+
 type MapActionBarProps = {
   canFocusSelected: boolean
   canCloseDetail: boolean
@@ -13,7 +15,7 @@ type MapActionBarProps = {
 }
 
 const buttonClassName =
-  'rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50'
+  'group inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-orange-100 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0'
 
 export default function MapActionBar({
   canFocusSelected,
@@ -28,37 +30,51 @@ export default function MapActionBar({
 }: MapActionBarProps) {
   return (
     <div
-      className={`pointer-events-none absolute right-3 z-[410] flex flex-col items-end gap-2 [contain:layout_paint] md:bottom-8 md:right-5 ${
-        isDetailOpen ? 'bottom-[calc(62vh+0.75rem)]' : 'bottom-5'
+      className={`pointer-events-none absolute right-3 z-[410] flex flex-col items-end gap-2 [contain:layout_paint] md:bottom-5 md:right-5 ${
+        isDetailOpen ? 'bottom-[calc(68vh+0.75rem)]' : 'bottom-3'
       }`}
     >
-      <div className="pointer-events-auto flex flex-wrap justify-end gap-1.5 rounded-xl border border-slate-300/90 bg-slate-50/95 p-1.5 shadow-lg backdrop-blur-md">
+      <div className="pointer-events-auto grid grid-cols-2 gap-2 rounded-2xl border border-orange-200/80 bg-[#fffaf5]/95 p-2 shadow-[0_14px_38px_rgba(124,45,18,0.14)] backdrop-blur-md sm:flex sm:flex-wrap sm:justify-end">
         <button
           type="button"
           onClick={onFitAll}
           disabled={!hasActivities}
           className={buttonClassName}
+          aria-label="在地图中显示全部活动"
         >
-          显示全部活动
+          <UiIcon name="expand" className="h-4 w-4 text-orange-600" />
+          <span>全部活动</span>
         </button>
         <button
           type="button"
           onClick={onFocusSelected}
           disabled={!canFocusSelected}
           className={buttonClassName}
+          aria-label="定位当前选中的活动"
         >
-          定位当前活动
+          <UiIcon name="focus" className="h-4 w-4 text-blue-600" />
+          <span>当前活动</span>
         </button>
         <button
           type="button"
           onClick={onCloseDetail}
           disabled={!canCloseDetail}
           className={buttonClassName}
+          aria-label="收起活动详情"
         >
-          收起详情
+          <UiIcon name="collapse" className="h-4 w-4 text-orange-600" />
+          <span>收起详情</span>
         </button>
-        <button type="button" onClick={onToggleList} className={buttonClassName}>
-          {isListOpen ? '关闭列表' : '活动列表'}
+        <button
+          type="button"
+          onClick={onToggleList}
+          className={`${buttonClassName} ${
+            isListOpen ? 'border-blue-200 bg-blue-600 text-white hover:bg-blue-700 hover:text-white' : ''
+          }`}
+          aria-pressed={isListOpen}
+        >
+          <UiIcon name="list" className={`h-4 w-4 ${isListOpen ? 'text-white' : 'text-blue-600'}`} />
+          <span>{isListOpen ? '关闭列表' : '活动列表'}</span>
         </button>
       </div>
     </div>
