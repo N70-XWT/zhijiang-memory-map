@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import UiIcon from '@/components/common/UiIcon'
@@ -80,14 +81,15 @@ function DetailContent({
               珍贵活动瞬间
             </div>
           ) : (
-            <img
+            <Image
               src={activity.coverImage}
               alt={activity.title}
               className="h-full w-full object-cover"
+              fill
+              sizes="(max-width: 767px) calc(100vw - 1.5rem), 408px"
+              quality={78}
               loading="lazy"
               decoding="async"
-              width={640}
-              height={360}
               onError={() => setCoverLoadFailed(true)}
             />
           )}

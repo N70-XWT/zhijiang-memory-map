@@ -82,6 +82,8 @@ export default async function ActivityDetailPage({ params }: ActivityDetailPageP
               loading="eager"
               width={1200}
               height={520}
+              sizes="(max-width: 767px) calc(100vw - 2rem), 976px"
+              quality={78}
             />
           </div>
 
@@ -168,6 +170,8 @@ export default async function ActivityDetailPage({ params }: ActivityDetailPageP
                       fallbackText="活动图片"
                       width={360}
                       height={220}
+                      sizes="(max-width: 767px) calc(100vw - 2rem), 310px"
+                      quality={75}
                     />
                   </div>
                   <div className="space-y-2 p-3">

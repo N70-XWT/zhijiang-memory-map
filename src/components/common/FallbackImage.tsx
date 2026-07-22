@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
 type FallbackImageProps = {
@@ -11,6 +12,8 @@ type FallbackImageProps = {
   width?: number
   height?: number
   loading?: 'lazy' | 'eager'
+  sizes?: string
+  quality?: number
 }
 
 export default function FallbackImage({
@@ -22,6 +25,8 @@ export default function FallbackImage({
   width,
   height,
   loading = 'lazy',
+  sizes,
+  quality,
 }: FallbackImageProps) {
   const [loadFailed, setLoadFailed] = useState(false)
 
@@ -36,7 +41,7 @@ export default function FallbackImage({
           {fallbackText}
         </div>
       ) : (
-        <img
+        <Image
           src={src}
           alt={alt}
           className={className}
@@ -44,6 +49,8 @@ export default function FallbackImage({
           decoding="async"
           width={width}
           height={height}
+          sizes={sizes}
+          quality={quality}
           onError={() => setLoadFailed(true)}
         />
       )}
