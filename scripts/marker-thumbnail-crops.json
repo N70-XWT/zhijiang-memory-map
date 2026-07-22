@@ -1,0 +1,59 @@
+{
+  "width": 192,
+  "height": 192,
+  "format": "webp",
+  "quality": 80,
+  "maxFileSizeBytes": 51200,
+  "maxTotalSizeBytes": 102400,
+  "crops": {
+    "/images/activities/2025-05-24.jpg": {
+      "target": "/images/activities/marker-thumbnails/2025-05-24.webp",
+      "left": 1300,
+      "top": 0,
+      "size": 3543,
+      "subject": "保留三位成员头像"
+    },
+    "/images/activities/2025-08-24.jpg": {
+      "target": "/images/activities/marker-thumbnails/2025-08-24.webp",
+      "left": 3050,
+      "top": 100,
+      "size": 3200,
+      "subject": "嘉然头像居中"
+    },
+    "/images/activities/2025-09-14.png": {
+      "target": "/images/activities/marker-thumbnails/2025-09-14.webp",
+      "left": 700,
+      "top": 0,
+      "size": 1000,
+      "subject": "贝拉头像和上半身"
+    },
+    "/images/activities/2025-11-02.png": {
+      "target": "/images/activities/marker-thumbnails/2025-11-02.webp",
+      "left": 265,
+      "top": 0,
+      "size": 430,
+      "subject": "乃琳头像完整可见"
+    },
+    "/images/activities/2025-12-27.jpg": {
+      "target": "/images/activities/marker-thumbnails/2025-12-27.webp",
+      "left": 1450,
+      "top": 0,
+      "size": 3000,
+      "subject": "保留三位成员头像"
+    },
+    "/images/activities/2026-03-28.jpg": {
+      "target": "/images/activities/marker-thumbnails/2026-03-28.webp",
+      "left": 1200,
+      "top": 0,
+      "size": 1800,
+      "subject": "乃琳头像突出显示"
+    },
+    "/images/activities/2026-04-18.jpg": {
+      "target": "/images/activities/marker-thumbnails/2026-04-18.webp",
+      "left": 1150,
+      "top": 150,
+      "size": 1800,
+      "subject": "贝拉头像突出显示"
+    }
+  }
+}
