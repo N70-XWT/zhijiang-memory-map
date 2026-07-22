@@ -72,6 +72,7 @@ export default function MapActionBar({
         <button
           type="button"
           onClick={onToggleList}
+          disabled={isDetailOpen}
           className={isListOpen ? activeListButtonClassName : neutralButtonClassName}
           aria-pressed={isListOpen}
         >

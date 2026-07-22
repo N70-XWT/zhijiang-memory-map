@@ -339,6 +339,7 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
     (activity: Activity) => {
       setSelectedActivity(activity)
       setIsPanelOpen(true)
+      setIsActivityListOpen(false)
       setInvalidActivityParam(false)
       if (window.matchMedia(MOBILE_VIEWPORT_QUERY).matches) {
         setIsFilterCollapsed(true)
@@ -349,11 +350,20 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
   )
 
   const handleClosePanel = useCallback(() => {
+    if (activityQueryFrameRef.current !== null) {
+      window.cancelAnimationFrame(activityQueryFrameRef.current)
+      activityQueryFrameRef.current = null
+    }
+
     setSelectedActivity(null)
     setIsPanelOpen(false)
     setInvalidActivityParam(false)
-    updateActivityQuery(null)
-  }, [updateActivityQuery])
+
+    const params = new URLSearchParams(window.location.search)
+    params.delete('activity')
+    const query = params.toString()
+    window.history.replaceState(window.history.state, '', query ? `${pathname}?${query}` : pathname)
+  }, [pathname])
 
   const handleFitAllActivities = useCallback(() => {
     setFitAllRequest((value) => value + 1)
@@ -375,7 +385,6 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
   const handleSelectActivityFromList = useCallback(
     (activity: Activity) => {
       handleSelectActivity(activity)
-      setIsActivityListOpen(false)
     },
     [handleSelectActivity]
   )
@@ -471,6 +480,7 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
     }
 
     setSelectedActivity((previous) => (previous?.id === matchedActivity.id ? previous : matchedActivity))
+    setIsActivityListOpen(false)
     setIsPanelOpen(true)
   }, [activities.length, activitiesById, activityParam, filteredActivityIdSet, updateActivityQuery])
 
@@ -484,36 +494,39 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
     }
   }, [filteredActivityIdSet, handleClosePanel, selectedActivity])
 
-  const shouldUseCompactNoticeTop = isFilterHidden || isFilterCollapsed
+  const isActivityListVisible = isActivityListOpen && !isPanelOpen
+  const shouldUseCompactNoticeTop = isPanelOpen || isFilterHidden || isFilterCollapsed
 
   return (
     <div className="relative h-full w-full">
-      <ActivityFilterBar
-        searchKeyword={searchKeyword}
-        onSearchKeywordChange={setSearchKeyword}
-        cityFilter={cityFilter}
-        cityOptions={cityOptions}
-        onCityFilterChange={setCityFilter}
-        yearFilter={yearFilter}
-        yearOptions={yearOptions}
-        onYearFilterChange={setYearFilter}
-        eventTypeFilter={eventTypeFilter}
-        eventTypeOptions={eventTypeOptions}
-        onEventTypeFilterChange={setEventTypeFilter}
-        memberFilter={memberFilter}
-        memberOptions={memberOptions}
-        onMemberFilterChange={setMemberFilter}
-        onClearFilters={handleClearFilters}
-        isClearDisabled={!hasActiveCriteria}
-        resultCount={filteredActivities.length}
-        totalCount={activities.length}
-        activeCriteriaCount={activeCriteriaCount}
-        isCollapsed={isFilterCollapsed}
-        isHidden={isFilterHidden}
-        onToggleCollapsed={handleToggleFilterCollapsed}
-        onHide={handleHideFilterBar}
-        onShow={handleShowFilterBar}
-      />
+      {isPanelOpen ? null : (
+        <ActivityFilterBar
+          searchKeyword={searchKeyword}
+          onSearchKeywordChange={setSearchKeyword}
+          cityFilter={cityFilter}
+          cityOptions={cityOptions}
+          onCityFilterChange={setCityFilter}
+          yearFilter={yearFilter}
+          yearOptions={yearOptions}
+          onYearFilterChange={setYearFilter}
+          eventTypeFilter={eventTypeFilter}
+          eventTypeOptions={eventTypeOptions}
+          onEventTypeFilterChange={setEventTypeFilter}
+          memberFilter={memberFilter}
+          memberOptions={memberOptions}
+          onMemberFilterChange={setMemberFilter}
+          onClearFilters={handleClearFilters}
+          isClearDisabled={!hasActiveCriteria}
+          resultCount={filteredActivities.length}
+          totalCount={activities.length}
+          activeCriteriaCount={activeCriteriaCount}
+          isCollapsed={isFilterCollapsed}
+          isHidden={isFilterHidden}
+          onToggleCollapsed={handleToggleFilterCollapsed}
+          onHide={handleHideFilterBar}
+          onShow={handleShowFilterBar}
+        />
+      )}
 
       {invalidActivityParam ? <InvalidQueryNotice compactTop={shouldUseCompactNoticeTop} /> : null}
 
@@ -531,7 +544,7 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
         canCloseDetail={isPanelOpen}
         hasActivities={filteredActivities.length > 0}
         isDetailOpen={isPanelOpen}
-        isListOpen={isActivityListOpen}
+        isListOpen={isActivityListVisible}
         onFitAll={handleFitAllActivities}
         onFocusSelected={handleFocusSelectedActivity}
         onCloseDetail={handleClosePanel}
@@ -541,7 +554,7 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
       <ActivityResultList
         activities={filteredActivities}
         selectedActivityId={selectedActivityId}
-        isOpen={isActivityListOpen}
+        isOpen={isActivityListVisible}
         onClose={handleCloseActivityList}
         onSelect={handleSelectActivityFromList}
       />
