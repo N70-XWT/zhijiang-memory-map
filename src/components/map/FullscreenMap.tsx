@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet'
 import ActivityFilterBar from '@/components/filters/ActivityFilterBar'
 import ActivityResultList from '@/components/map/ActivityResultList'
-import MapActionBar from '@/components/map/MapActionBar'
+import MemoryTimeline from '@/components/map/MemoryTimeline'
 import ActivityDetailPanel from '@/components/panel/ActivityDetailPanel'
 import {
   CHINA_MAP_CENTER,
@@ -44,6 +44,21 @@ type NoticeOverlayProps = {
 
 const ALL_OPTION = 'all'
 const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)'
+const TIMELINE_PANEL_DELAY_MS = 110
+
+const getLatestActivityId = (activities: Activity[]) => {
+  let latestActivity: Activity | null = null
+  for (const activity of activities) {
+    if (
+      !latestActivity ||
+      activity.date > latestActivity.date ||
+      (activity.date === latestActivity.date && activity.id > latestActivity.id)
+    ) {
+      latestActivity = activity
+    }
+  }
+  return latestActivity?.id ?? null
+}
 
 const setOptionalQueryParam = (params: URLSearchParams, key: string, value: string) => {
   const normalizedValue = value.trim()
@@ -56,7 +71,7 @@ const setOptionalQueryParam = (params: URLSearchParams, key: string, value: stri
 
 function NoticeOverlay({ title, description }: NoticeOverlayProps) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-6 z-[420] flex justify-center px-4">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(132px+env(safe-area-inset-bottom))] z-[420] flex justify-center px-4 md:bottom-[116px]">
       <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-orange-200/80 bg-[#fffaf5]/95 px-4 py-3 text-center shadow-[0_14px_38px_rgba(124,45,18,0.15)] backdrop-blur-md">
         <p className="text-sm font-extrabold text-slate-950">{title}</p>
         <p className="mt-1 text-xs text-slate-500">{description}</p>
@@ -180,9 +195,14 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(false)
   const [isFilterHidden, setIsFilterHidden] = useState(false)
   const [isActivityListOpen, setIsActivityListOpen] = useState(false)
+  const [timelineCursorId, setTimelineCursorId] = useState<string | null>(() =>
+    getLatestActivityId(activities)
+  )
   const [fitAllRequest, setFitAllRequest] = useState(0)
   const [focusSelectedRequest, setFocusSelectedRequest] = useState(0)
   const activityQueryFrameRef = useRef<number | null>(null)
+  const panelOpenTimeoutRef = useRef<number | null>(null)
+  const delayedPanelActivityIdRef = useRef<string | null>(null)
 
   const selectedActivityId = useMemo(() => selectedActivity?.id ?? null, [selectedActivity])
 
@@ -267,6 +287,15 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
     [filteredActivities]
   )
 
+  const sortedFilteredActivities = useMemo(
+    () =>
+      [...filteredActivities].sort((left, right) => {
+        const byDate = left.date.localeCompare(right.date)
+        return byDate === 0 ? left.id.localeCompare(right.id) : byDate
+      }),
+    [filteredActivities]
+  )
+
   const activeCriteriaCount = useMemo(() => {
     let count = 0
     if (cityFilter !== ALL_OPTION) count += 1
@@ -331,22 +360,70 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
         window.cancelAnimationFrame(activityQueryFrameRef.current)
         activityQueryFrameRef.current = null
       }
+      if (panelOpenTimeoutRef.current !== null) {
+        window.clearTimeout(panelOpenTimeoutRef.current)
+        panelOpenTimeoutRef.current = null
+      }
     },
     []
   )
 
-  const handleSelectActivity = useCallback(
-    (activity: Activity) => {
+  const commitActivitySelection = useCallback(
+    (activity: Activity, options: { focusMap: boolean; delayPanel: boolean }) => {
+      if (panelOpenTimeoutRef.current !== null) {
+        window.clearTimeout(panelOpenTimeoutRef.current)
+        panelOpenTimeoutRef.current = null
+      }
+
       setSelectedActivity(activity)
-      setIsPanelOpen(true)
+      setTimelineCursorId(activity.id)
       setIsActivityListOpen(false)
       setInvalidActivityParam(false)
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (options.delayPanel && !reduceMotion) {
+        delayedPanelActivityIdRef.current = activity.id
+        setIsPanelOpen(false)
+        panelOpenTimeoutRef.current = window.setTimeout(() => {
+          delayedPanelActivityIdRef.current = null
+          panelOpenTimeoutRef.current = null
+          setIsPanelOpen(true)
+        }, TIMELINE_PANEL_DELAY_MS)
+      } else {
+        delayedPanelActivityIdRef.current = null
+        setIsPanelOpen(true)
+      }
+
       if (window.matchMedia(MOBILE_VIEWPORT_QUERY).matches) {
         setIsFilterCollapsed(true)
+      }
+      if (options.focusMap) {
+        setFocusSelectedRequest((value) => value + 1)
       }
       updateActivityQuery(activity.id)
     },
     [updateActivityQuery]
+  )
+
+  const handleSelectActivity = useCallback(
+    (activity: Activity) => {
+      commitActivitySelection(activity, { focusMap: false, delayPanel: false })
+    },
+    [commitActivitySelection]
+  )
+
+  const handleSelectTimelineActivity = useCallback(
+    (activity: Activity) => {
+      commitActivitySelection(activity, { focusMap: true, delayPanel: !isPanelOpen })
+    },
+    [commitActivitySelection, isPanelOpen]
+  )
+
+  const handleSelectAdjacentActivity = useCallback(
+    (activity: Activity) => {
+      commitActivitySelection(activity, { focusMap: true, delayPanel: false })
+    },
+    [commitActivitySelection]
   )
 
   const handleClosePanel = useCallback(() => {
@@ -354,6 +431,12 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
       window.cancelAnimationFrame(activityQueryFrameRef.current)
       activityQueryFrameRef.current = null
     }
+
+    if (panelOpenTimeoutRef.current !== null) {
+      window.clearTimeout(panelOpenTimeoutRef.current)
+      panelOpenTimeoutRef.current = null
+    }
+    delayedPanelActivityIdRef.current = null
 
     setSelectedActivity(null)
     setIsPanelOpen(false)
@@ -365,9 +448,20 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
     window.history.replaceState(window.history.state, '', query ? `${pathname}?${query}` : pathname)
   }, [pathname])
 
-  const handleFitAllActivities = useCallback(() => {
+  const handleResetTimeline = useCallback(() => {
+    if (panelOpenTimeoutRef.current !== null) {
+      window.clearTimeout(panelOpenTimeoutRef.current)
+      panelOpenTimeoutRef.current = null
+    }
+    delayedPanelActivityIdRef.current = null
+    setTimelineCursorId(null)
+    setSelectedActivity(null)
+    setIsPanelOpen(false)
+    setIsActivityListOpen(false)
+    setInvalidActivityParam(false)
+    updateActivityQuery(null)
     setFitAllRequest((value) => value + 1)
-  }, [])
+  }, [updateActivityQuery])
 
   const handleFocusSelectedActivity = useCallback(() => {
     setFocusSelectedRequest((value) => value + 1)
@@ -384,9 +478,9 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
 
   const handleSelectActivityFromList = useCallback(
     (activity: Activity) => {
-      handleSelectActivity(activity)
+      commitActivitySelection(activity, { focusMap: true, delayPanel: false })
     },
-    [handleSelectActivity]
+    [commitActivitySelection]
   )
 
   const handleClearFilters = useCallback(() => {
@@ -453,6 +547,7 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
     if (activities.length === 0) {
       setSelectedActivity(null)
       setIsPanelOpen(false)
+      setTimelineCursorId(null)
       return
     }
 
@@ -479,9 +574,12 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
       return
     }
 
+    setTimelineCursorId(matchedActivity.id)
     setSelectedActivity((previous) => (previous?.id === matchedActivity.id ? previous : matchedActivity))
     setIsActivityListOpen(false)
-    setIsPanelOpen(true)
+    if (delayedPanelActivityIdRef.current !== matchedActivity.id) {
+      setIsPanelOpen(true)
+    }
   }, [activities.length, activitiesById, activityParam, filteredActivityIdSet, updateActivityQuery])
 
   useEffect(() => {
@@ -494,8 +592,51 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
     }
   }, [filteredActivityIdSet, handleClosePanel, selectedActivity])
 
+  useEffect(() => {
+    if (!timelineCursorId || filteredActivityIdSet.has(timelineCursorId)) {
+      return
+    }
+
+    if (sortedFilteredActivities.length === 0) {
+      return
+    }
+
+    const previousCursorActivity = activitiesById.get(timelineCursorId)
+    if (!previousCursorActivity) {
+      setTimelineCursorId(sortedFilteredActivities[sortedFilteredActivities.length - 1].id)
+      return
+    }
+
+    const previousTimestamp = Date.parse(`${previousCursorActivity.date}T00:00:00+08:00`)
+    let nearestActivity = sortedFilteredActivities[0]
+    let nearestDistance = Math.abs(
+      Date.parse(`${nearestActivity.date}T00:00:00+08:00`) - previousTimestamp
+    )
+
+    sortedFilteredActivities.slice(1).forEach((activity) => {
+      const distance = Math.abs(
+        Date.parse(`${activity.date}T00:00:00+08:00`) - previousTimestamp
+      )
+      if (distance < nearestDistance) {
+        nearestActivity = activity
+        nearestDistance = distance
+      }
+    })
+
+    setTimelineCursorId(nearestActivity.id)
+  }, [activitiesById, filteredActivityIdSet, sortedFilteredActivities, timelineCursorId])
+
   const isActivityListVisible = isActivityListOpen && !isPanelOpen
   const shouldUseCompactNoticeTop = isPanelOpen || isFilterHidden || isFilterCollapsed
+  const selectedTimelineIndex = selectedActivity
+    ? sortedFilteredActivities.findIndex((activity) => activity.id === selectedActivity.id)
+    : -1
+  const previousDetailActivity =
+    selectedTimelineIndex > 0 ? sortedFilteredActivities[selectedTimelineIndex - 1] : null
+  const nextDetailActivity =
+    selectedTimelineIndex >= 0 && selectedTimelineIndex < sortedFilteredActivities.length - 1
+      ? sortedFilteredActivities[selectedTimelineIndex + 1]
+      : null
 
   return (
     <div className="relative h-full w-full">
@@ -539,15 +680,19 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
         onSelect={handleSelectActivity}
       />
 
-      <MapActionBar
-        canFocusSelected={Boolean(selectedActivity)}
-        canCloseDetail={isPanelOpen}
-        hasActivities={filteredActivities.length > 0}
+      <MemoryTimeline
+        activities={filteredActivities}
+        totalCount={activities.length}
+        cursorActivityId={timelineCursorId}
+        selectedActivityId={selectedActivityId}
         isDetailOpen={isPanelOpen}
         isListOpen={isActivityListVisible}
-        onFitAll={handleFitAllActivities}
-        onFocusSelected={handleFocusSelectedActivity}
-        onCloseDetail={handleClosePanel}
+        hasActiveCriteria={hasActiveCriteria}
+        onCursorChange={setTimelineCursorId}
+        onSelect={handleSelectTimelineActivity}
+        onResetAll={handleResetTimeline}
+        onClearFilters={handleClearFilters}
+        onFocusCurrent={handleFocusSelectedActivity}
         onToggleList={handleToggleActivityList}
       />
 
@@ -563,6 +708,18 @@ export default function FullscreenMap({ activities }: FullscreenMapProps) {
         activity={selectedActivity}
         isOpen={isPanelOpen}
         onClose={handleClosePanel}
+        timelineNavigation={
+          selectedTimelineIndex >= 0
+            ? {
+                currentIndex: selectedTimelineIndex + 1,
+                totalCount: sortedFilteredActivities.length,
+                previousActivity: previousDetailActivity,
+                nextActivity: nextDetailActivity,
+                onSelect: handleSelectAdjacentActivity,
+                onFocusCurrent: handleFocusSelectedActivity,
+              }
+            : undefined
+        }
       />
 
       {activities.length === 0 ? (

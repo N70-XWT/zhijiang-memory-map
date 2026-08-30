@@ -3,7 +3,7 @@ const MAILTO_HREF = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('枝�
 
 export default function FeedbackContactLink() {
   return (
-    <div className="pointer-events-none absolute bottom-3 left-3 z-[380] max-w-[calc(100vw-1.5rem)] md:bottom-5 md:left-5">
+    <div className="pointer-events-none absolute bottom-[calc(132px+env(safe-area-inset-bottom))] left-3 z-[380] max-w-[calc(100vw-1.5rem)] md:bottom-[116px] md:left-5">
       <a
         href={MAILTO_HREF}
         aria-label={`发送反馈邮件到 ${CONTACT_EMAIL}`}

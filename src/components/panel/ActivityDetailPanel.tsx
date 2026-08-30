@@ -11,6 +11,14 @@ type ActivityDetailPanelProps = {
   activity: Activity | null
   isOpen: boolean
   onClose: () => void
+  timelineNavigation?: {
+    currentIndex: number
+    totalCount: number
+    previousActivity: Activity | null
+    nextActivity: Activity | null
+    onSelect: (activity: Activity) => void
+    onFocusCurrent: () => void
+  }
 }
 
 const DESKTOP_VIEWPORT_QUERY = '(min-width: 768px)'
@@ -153,13 +161,78 @@ function DetailContent({
   )
 }
 
+function MobileTimelineNavigation({
+  activity,
+  navigation,
+}: {
+  activity: Activity
+  navigation: NonNullable<ActivityDetailPanelProps['timelineNavigation']>
+}) {
+  return (
+    <nav
+      className="grid h-[52px] grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-1 border-b border-orange-100 bg-white/55 px-3"
+      aria-label="相邻活动导航"
+    >
+      <button
+        type="button"
+        onClick={() => navigation.previousActivity && navigation.onSelect(navigation.previousActivity)}
+        disabled={!navigation.previousActivity}
+        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+        aria-label="上一场活动"
+      >
+        <UiIcon name="arrow" className="h-4 w-4 rotate-180" />
+      </button>
+
+      <button
+        type="button"
+        onClick={navigation.onFocusCurrent}
+        className="min-w-0 rounded-xl px-2 py-1 text-center transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        aria-label="在地图中重新定位当前活动"
+      >
+        <span className="block truncate text-xs font-extrabold text-slate-950">
+          {activity.date} · {activity.city}
+        </span>
+        <span className="block text-[10px] font-semibold text-slate-500">
+          {navigation.currentIndex} / {navigation.totalCount}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => navigation.nextActivity && navigation.onSelect(navigation.nextActivity)}
+        disabled={!navigation.nextActivity}
+        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+        aria-label="下一场活动"
+      >
+        <UiIcon name="arrow" className="h-4 w-4" />
+      </button>
+    </nav>
+  )
+}
+
 export default function ActivityDetailPanel({
   activity,
   isOpen,
   onClose,
+  timelineNavigation,
 }: ActivityDetailPanelProps) {
   const isVisible = Boolean(activity) && isOpen
   const isDesktopViewport = useDesktopViewport()
+
+  useEffect(() => {
+    if (!isVisible) {
+      return
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isVisible, onClose])
 
   return (
     <>
@@ -240,6 +313,10 @@ export default function ActivityDetailPanel({
               收起
             </button>
           </header>
+
+          {activity && timelineNavigation ? (
+            <MobileTimelineNavigation activity={activity} navigation={timelineNavigation} />
+          ) : null}
 
           {activity && !isDesktopViewport ? (
             <DetailContent
