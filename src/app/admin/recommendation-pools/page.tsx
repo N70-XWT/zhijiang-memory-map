@@ -320,7 +320,16 @@ export default function RecommendationPoolsAdminPage() {
                       >
                         {video.cover ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={video.cover} alt="" className="h-full w-full object-cover" />
+                          <img
+                            src={video.cover}
+                            alt={`${video.title} 视频封面`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            referrerPolicy="no-referrer"
+                            width={480}
+                            height={270}
+                          />
                         ) : null}
                       </a>
 

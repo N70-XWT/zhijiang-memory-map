@@ -1,5 +1,38 @@
 [
   {
+    "id": "event-shanghai-2026-06-20",
+    "slug": "diana-2nd-solo-live",
+    "title": "然有引力-嘉然单人专场线下",
+    "date": "2026-06-20",
+    "year": 2026,
+    "city": "上海",
+    "venue": "上海星临天下剧场",
+    "venueAddress": "上海市虹口区四川北路939弄滨港商业中心6层",
+    "latitude": 31.249436,
+    "longitude": 121.483366,
+    "markerThumbnail": "/images/activities/marker-thumbnails/2026-06-20.webp",
+    "coverImage": "/images/activities/2026-06-20.png",
+    "summary": "音符伴着舞步跳动✨被独属于 A-SOUL 嘉然的「然有引力」狠狠吸引，见证软萌元气、帅气反差、可爱满分的专属魅力凝成与生俱来的心动磁场💫",
+    "description": "活动详细介绍。",
+    "eventType": "个人演唱会",
+    "members": [
+      "嘉然"
+    ],
+    "tags": [
+      "线下"
+    ],
+    "bilibiliVideos": [
+      {
+        "id": "BV1aj756zEdV",
+        "title": "【然有引力】嘉然专场线下全纪录💫",
+        "cover": "",
+        "url": "https://www.bilibili.com/video/BV1aj756zEdV",
+        "sourceType": "official",
+        "note": "官方记录视频"
+      }
+    ]
+  },
+  {
     "id": "event-hangzhou-2026-04-18",
     "slug": "bella-2nd-solo-live",
     "title": "在月光下加冕-贝拉单人专场线下",

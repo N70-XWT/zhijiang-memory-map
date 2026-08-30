@@ -6,6 +6,13 @@
   "maxFileSizeBytes": 51200,
   "maxTotalSizeBytes": 102400,
   "crops": {
+    "/images/activities/2026-06-20.png": {
+      "target": "/images/activities/marker-thumbnails/2026-06-20.webp",
+      "left": 330,
+      "top": 0,
+      "size": 500,
+      "subject": "嘉然头像和上半身完整可见"
+    },
     "/images/activities/2025-05-24.jpg": {
       "target": "/images/activities/marker-thumbnails/2025-05-24.webp",
       "left": 1300,
