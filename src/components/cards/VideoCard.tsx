@@ -129,7 +129,7 @@ export default function VideoCard({ video }: VideoCardProps) {
   }, [video.sourceType])
 
   return (
-    <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <article className="memory-video-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="relative aspect-video w-full overflow-hidden border-b border-slate-200 bg-slate-200">
         {coverLoadFailed ? (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-xs text-slate-600">
@@ -156,7 +156,7 @@ export default function VideoCard({ video }: VideoCardProps) {
 
       <div className="space-y-2.5 p-3">
         <h4
-          className="text-sm font-medium leading-5 text-slate-900"
+          className="min-h-10 text-sm font-medium leading-5 text-slate-900"
           style={{
             display: '-webkit-box',
             WebkitLineClamp: 2,

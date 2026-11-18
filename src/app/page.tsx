@@ -11,7 +11,7 @@ const FullscreenMap = dynamic(() => import('@/components/map/FullscreenMap'), {
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[#fff7ed] px-6 text-center">
       <div className="absolute -left-16 top-1/4 h-56 w-56 rounded-full bg-orange-200/45 blur-3xl" />
       <div className="absolute -right-16 bottom-1/4 h-56 w-56 rounded-full bg-blue-200/40 blur-3xl" />
-      <div className="relative rounded-[28px] border border-orange-200/80 bg-white/90 px-8 py-7 shadow-[0_24px_70px_rgba(124,45,18,0.14)] backdrop-blur-md">
+      <div className="relative rounded-[28px] border border-orange-200/80 bg-white/90 px-8 py-7 shadow-[0_24px_70px_rgba(124,45,18,0.14)] ">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-lg shadow-orange-600/25">
           <UiIcon name="map" className="h-6 w-6 animate-pulse" />
         </div>
@@ -27,13 +27,13 @@ const activities = getAllActivities()
 export default function HomePage() {
   return (
     <main className="relative h-[100dvh] w-screen overflow-hidden bg-[#fff7ed] text-slate-950">
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[450] flex justify-center px-2.5 pt-2.5 md:px-4 md:pt-4">
-        <div className="pointer-events-auto flex max-w-[calc(100vw-1.25rem)] items-center gap-2.5 rounded-2xl border border-orange-200/80 bg-[#fffaf5]/95 px-3 py-2 shadow-[0_12px_36px_rgba(124,45,18,0.14)] backdrop-blur-md md:rounded-full md:px-4 md:py-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-white shadow-sm shadow-orange-600/25 md:rounded-full">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[450] flex justify-center lg:justify-start px-2.5 pt-2.5 lg:px-4 lg:pt-4">
+        <div className="pointer-events-auto flex max-w-[calc(100vw-1.25rem)] items-center gap-2.5 rounded-2xl border border-orange-200/80 bg-[#fffaf5] px-3 py-2 shadow-[0_12px_36px_rgba(124,45,18,0.14)]  lg:rounded-full lg:px-4 lg:py-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-white shadow-sm shadow-orange-600/25 lg:rounded-full">
             <UiIcon name="map" className="h-[18px] w-[18px]" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-extrabold tracking-tight text-slate-950 md:text-[15px]">
+            <span className="block truncate text-sm font-extrabold tracking-tight text-slate-950 lg:text-[15px]">
               枝江线下回忆地图
             </span>
             <span className="hidden truncate text-[11px] font-medium text-slate-500 sm:block">

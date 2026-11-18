@@ -9,7 +9,8 @@
     "crawl:activities": "node scripts/crawl-bilibili-activities.mjs",
     "generate:marker-thumbnails": "node scripts/generate-marker-thumbnails.mjs",
     "warm:related-videos": "node scripts/warm-related-videos.mjs",
-    "validate:activities": "node scripts/validate-confirmed-activities.mjs"
+    "validate:activities": "node scripts/validate-confirmed-activities.mjs",
+    "test:map": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",

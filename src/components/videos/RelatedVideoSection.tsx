@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import VideoCard from '@/components/cards/VideoCard'
+import RelatedVideoSkeleton from './RelatedVideoSkeleton'
 import type { Activity, BilibiliVideo } from '@/types/activity'
 
 type RelatedVideoSectionProps = {
@@ -20,10 +21,6 @@ type CachedRelatedVideos = {
   hasMore: boolean
   nextPage: number | null
   videos: BilibiliVideo[]
-}
-
-type LoadingNoticeProps = {
-  label: string
 }
 
 const RELATED_VIDEO_CACHE_VERSION = 'v8'
@@ -77,15 +74,6 @@ const mergeVideos = (currentVideos: BilibiliVideo[], nextVideos: BilibiliVideo[]
   }
 
   return merged
-}
-
-function LoadingNotice({ label }: LoadingNoticeProps) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 py-3 text-sm text-blue-800">
-      <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700" />
-      <span>{label}</span>
-    </div>
-  )
 }
 
 export default function RelatedVideoSection({ activity, variant }: RelatedVideoSectionProps) {
@@ -246,7 +234,7 @@ export default function RelatedVideoSection({ activity, variant }: RelatedVideoS
     'rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-600'
 
   return (
-    <section className={sectionClassName}>
+    <section className={sectionClassName} aria-busy={!hasLoaded || isLoadingMore}>
       <h2 className={titleClassName}>B站相关视频</h2>
 
       <div className={isPage ? 'mt-4 space-y-5' : 'space-y-4'}>
@@ -265,8 +253,8 @@ export default function RelatedVideoSection({ activity, variant }: RelatedVideoS
 
         <div className="space-y-3">
           <h3 className="text-xs font-semibold text-slate-500">自动推荐</h3>
-          {isLoading ? (
-            <LoadingNotice label="正在搜索 B 站相关视频..." />
+          {isLoading || !hasLoaded ? (
+            <RelatedVideoSkeleton variant={variant} label="正在搜索 B 站相关视频…" />
           ) : recommendedVideos.length > 0 ? (
             <>
               <div className={gridClassName}>
@@ -275,7 +263,7 @@ export default function RelatedVideoSection({ activity, variant }: RelatedVideoS
                 ))}
               </div>
               {isLoadingMore ? (
-                <LoadingNotice label="正在加载更多..." />
+                <RelatedVideoSkeleton variant={variant} label="正在加载更多视频…" />
               ) : hasMore ? (
                 <div ref={loadMoreRef} className="h-8" aria-hidden="true" />
               ) : (

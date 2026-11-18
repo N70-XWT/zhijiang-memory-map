@@ -1,16 +1,29 @@
-﻿'use client'
-
-import Image from 'next/image'
+'use client'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+} from 'react'
 import UiIcon from '@/components/common/UiIcon'
+import StateIcon from '@/components/common/StateIcon'
+import FallbackImage from '@/components/common/FallbackImage'
 import RelatedVideoSection from '@/components/videos/RelatedVideoSection'
+import { RelatedVideoPlaceholder } from '@/components/videos/RelatedVideoSkeleton'
+import { usePanelFocus } from '@/components/hooks/usePanelFocus'
 import type { Activity } from '@/types/activity'
 
-type ActivityDetailPanelProps = {
+type Sheet = 'summary' | 'half' | 'full'
+type Props = {
   activity: Activity | null
   isOpen: boolean
+  isDesktop: boolean
+  sheet: Sheet
+  onSheetChange: (sheet: Sheet) => void
   onClose: () => void
+  onBackToList?: () => void
   timelineNavigation?: {
     currentIndex: number
     totalCount: number
@@ -20,316 +33,341 @@ type ActivityDetailPanelProps = {
     onFocusCurrent: () => void
   }
 }
-
-const DESKTOP_VIEWPORT_QUERY = '(min-width: 768px)'
-const RELATED_VIDEO_MOUNT_DELAY_MS = 320
-
-function useDesktopViewport() {
-  const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
-    typeof window === 'undefined' ? true : window.matchMedia(DESKTOP_VIEWPORT_QUERY).matches
-  )
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(DESKTOP_VIEWPORT_QUERY)
-    const updateViewport = () => setIsDesktopViewport(mediaQuery.matches)
-
-    updateViewport()
-    mediaQuery.addEventListener('change', updateViewport)
-    return () => {
-      mediaQuery.removeEventListener('change', updateViewport)
-    }
-  }, [])
-
-  return isDesktopViewport
-}
-
-function DetailContent({
+function DetailBody({
   activity,
-  isOpen,
-  shouldLoadVideos,
+  visible,
+  stable,
 }: {
   activity: Activity
-  isOpen: boolean
-  shouldLoadVideos: boolean
+  visible: boolean
+  stable: boolean
 }) {
-  const [coverLoadFailed, setCoverLoadFailed] = useState(false)
-  const [canRenderVideos, setCanRenderVideos] = useState(false)
-
+  const videos = useRef<HTMLDivElement>(null)
+  const [nearVideos, setNearVideos] = useState(false)
   useEffect(() => {
-    setCoverLoadFailed(false)
-  }, [activity.coverImage])
-
-  useEffect(() => {
-    if (!isOpen || !shouldLoadVideos) {
-      setCanRenderVideos(false)
-      return
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setCanRenderVideos(true)
-    }, RELATED_VIDEO_MOUNT_DELAY_MS)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [activity.id, isOpen, shouldLoadVideos])
-
-  const metaTags = useMemo(
-    () => [activity.eventType, `${activity.year} 年`, ...activity.tags.slice(0, 2)],
-    [activity.eventType, activity.year, activity.tags]
-  )
-
+    const el = videos.current
+    if (!el || !visible) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setNearVideos(true)
+      },
+      { root: el.parentElement, rootMargin: '80px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [visible])
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 md:space-y-4 md:px-4 md:py-4">
-      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
-        <div className="relative aspect-[16/8] w-full md:aspect-[16/9]">
-          {coverLoadFailed ? (
-            <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-orange-100 via-[#fff7ed] to-blue-100 text-sm font-bold text-orange-800">
-              <UiIcon name="sparkles" className="mb-2 h-6 w-6" />
-              珍贵活动瞬间
-            </div>
-          ) : (
-            <Image
-              src={activity.coverImage}
-              alt={activity.title}
-              className="h-full w-full object-cover"
-              fill
-              sizes="(max-width: 767px) calc(100vw - 1.5rem), 408px"
-              quality={78}
-              loading="lazy"
-              decoding="async"
-              onError={() => setCoverLoadFailed(true)}
+    <div
+      className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-5"
+      hidden={!visible}
+      inert={!visible}
+    >
+      <FallbackImage
+        src={activity.coverImage}
+        alt={activity.title}
+        width={720}
+        height={405}
+        sizes="(min-width: 1024px) 368px, 100vw"
+        wrapperClassName="memory-lift-cover mb-4 aspect-video w-full overflow-hidden rounded-[14px] bg-orange-50"
+        className="h-full w-full object-cover"
+        fallbackText="海报暂时无法加载"
+      />
+      <div className="memory-lift-copy">
+        <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-600">
+          <span>{activity.eventType}</span>
+          <span>·</span>
+          <span>{activity.members.join(' / ')}</span>
+        </div>
+        <h3 className="text-sm font-bold text-orange-800">活动回忆</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-700">
+          {activity.summary}
+        </p>
+        <Link
+          href={`/activities/${activity.slug}`}
+          className="memory-button mt-4 w-fit"
+        >
+          完整详情
+          <UiIcon name="arrow" className="h-4 w-4" />
+        </Link>
+        <div ref={videos} className="mt-5 min-h-24">
+          {nearVideos && stable && visible ? (
+            <RelatedVideoSection
+              key={activity.id}
+              activity={activity}
+              variant="panel"
             />
+          ) : (
+            <RelatedVideoPlaceholder activity={activity} />
           )}
         </div>
       </div>
-
-      <div className="space-y-3 rounded-2xl border border-orange-100 bg-white p-3.5 shadow-sm md:p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2 md:gap-3">
-          <h3 className="min-w-0 flex-1 text-lg font-extrabold leading-7 tracking-tight text-slate-950 md:text-xl">
-            {activity.title}
-          </h3>
-          <Link
-            href={`/activities/${activity.slug}`}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-          >
-            完整详情
-            <UiIcon name="arrow" className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          {metaTags.map((tag) => (
-            <span
-              key={`${activity.id}-${tag}`}
-              className="rounded-full border border-orange-100 bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-800"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-
-        <div className="grid gap-2 rounded-2xl bg-[#fffaf5] p-3 sm:grid-cols-2 md:grid-cols-1">
-          <p className="flex items-start gap-2 text-sm text-slate-700">
-            <UiIcon name="calendar" className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
-            <span><span className="font-bold text-slate-900">日期</span><br />{activity.date}</span>
-          </p>
-          <p className="flex items-start gap-2 text-sm text-slate-700">
-            <UiIcon name="pin" className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-            <span><span className="font-bold text-slate-900">地点</span><br />{activity.city} · {activity.venue}</span>
-          </p>
-          <p className="flex items-start gap-2 text-sm text-slate-700 sm:col-span-2 md:col-span-1">
-            <UiIcon name="users" className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
-            <span><span className="font-bold text-slate-900">参与成员</span><br />{activity.members.join(' / ')}</span>
-          </p>
-        </div>
-        <div className="border-t border-orange-100 pt-3">
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-orange-700">活动回忆</p>
-          <p className="mt-2 text-sm leading-6 text-slate-700">{activity.summary}</p>
-        </div>
-      </div>
-
-      {canRenderVideos ? (
-        <RelatedVideoSection activity={activity} variant="panel" />
-      ) : (
-        <div
-          className="h-24 animate-pulse rounded-2xl border border-orange-100 bg-white/80"
-          aria-hidden="true"
-        />
-      )}
     </div>
   )
 }
-
-function MobileTimelineNavigation({
-  activity,
-  navigation,
-}: {
-  activity: Activity
-  navigation: NonNullable<ActivityDetailPanelProps['timelineNavigation']>
-}) {
-  return (
-    <nav
-      className="grid h-[52px] grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-1 border-b border-orange-100 bg-white/55 px-3"
-      aria-label="相邻活动导航"
-    >
-      <button
-        type="button"
-        onClick={() => navigation.previousActivity && navigation.onSelect(navigation.previousActivity)}
-        disabled={!navigation.previousActivity}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
-        aria-label="上一场活动"
-      >
-        <UiIcon name="arrow" className="h-4 w-4 rotate-180" />
-      </button>
-
-      <button
-        type="button"
-        onClick={navigation.onFocusCurrent}
-        className="min-w-0 rounded-xl px-2 py-1 text-center transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        aria-label="在地图中重新定位当前活动"
-      >
-        <span className="block truncate text-xs font-extrabold text-slate-950">
-          {activity.date} · {activity.city}
-        </span>
-        <span className="block text-[10px] font-semibold text-slate-500">
-          {navigation.currentIndex} / {navigation.totalCount}
-        </span>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => navigation.nextActivity && navigation.onSelect(navigation.nextActivity)}
-        disabled={!navigation.nextActivity}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
-        aria-label="下一场活动"
-      >
-        <UiIcon name="arrow" className="h-4 w-4" />
-      </button>
-    </nav>
-  )
-}
-
-export default function ActivityDetailPanel({
-  activity,
-  isOpen,
-  onClose,
-  timelineNavigation,
-}: ActivityDetailPanelProps) {
-  const isVisible = Boolean(activity) && isOpen
-  const isDesktopViewport = useDesktopViewport()
-
+export default function ActivityDetailPanel(p: Props) {
+  const panel = useRef<HTMLElement>(null)
+  const open = p.isOpen && Boolean(p.activity)
+  const modal = open && !p.isDesktop && p.sheet === 'full'
+  usePanelFocus(panel, open, p.onClose, modal)
+  const [stableActivity, setStableActivity] = useState<string | null>(null)
+  const drag = useRef<{
+    y: number
+    time: number
+    delta: number
+    pointerId: number
+  } | null>(null)
+  const animation = useRef<Animation | null>(null)
+  const releaseOffset = useRef(0)
+  const previousHeight = useRef<number | null>(null)
+  const previousOpen = useRef(false)
+  useLayoutEffect(() => {
+    const el = panel.current
+    if (!el) return
+    const height = el.offsetHeight
+    animation.current?.cancel()
+    if (
+      open &&
+      previousOpen.current &&
+      !p.isDesktop &&
+      previousHeight.current !== null &&
+      previousHeight.current !== height &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      animation.current = el.animate(
+        [
+          { transform: `translateY(${height - previousHeight.current + releaseOffset.current}px)` },
+          { transform: 'translateY(0)' },
+        ],
+        { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' },
+      )
+    }
+    releaseOffset.current = 0
+    previousHeight.current = height
+    previousOpen.current = open
+    return () => animation.current?.cancel()
+  }, [open, p.sheet, p.isDesktop])
   useEffect(() => {
-    if (!isVisible) {
+    setStableActivity(null)
+    if (!open || !p.activity) return
+    const id = p.activity.id
+    const timer = setTimeout(
+      () => setStableActivity(id),
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240,
+    )
+    return () => clearTimeout(timer)
+  }, [open, p.activity?.id, p.sheet])
+  const startDrag = (e: PointerEvent<HTMLElement>) => {
+    if (
+      p.isDesktop ||
+      (e.target as HTMLElement).closest('button,a') ||
+      e.button !== 0
+    )
       return
+    animation.current?.cancel()
+    drag.current = {
+      y: e.clientY,
+      time: performance.now(),
+      delta: 0,
+      pointerId: e.pointerId,
     }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    if (panel.current) panel.current.style.transition = 'none'
+  }
+  const moveDrag = (e: PointerEvent<HTMLElement>) => {
+    if (!drag.current || drag.current.pointerId !== e.pointerId) return
+    const delta = e.clientY - drag.current.y
+    drag.current.delta = delta
+    if (panel.current) panel.current.style.transform = `translateY(${delta}px)`
+  }
+  const stopDrag = (e: PointerEvent<HTMLElement>) => {
+    const d = drag.current
+    if (!d) return
+    drag.current = null
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    const el = panel.current
+    if (el) {
+      el.style.transform = ''
+      el.style.transition = ''
     }
-
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isVisible, onClose])
-
+    const levels: Sheet[] = ['summary', 'half', 'full']
+    const index = levels.indexOf(p.sheet)
+    const velocity = d.delta / Math.max(1, performance.now() - d.time)
+    const commit =
+      e.type !== 'pointercancel' &&
+      (Math.abs(d.delta) > 48 || Math.abs(velocity) > 0.45)
+    const target = commit
+      ? levels[Math.max(0, Math.min(2, index + (d.delta < 0 ? 1 : -1)))]
+      : p.sheet
+    if (
+      target === p.sheet &&
+      el &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      animation.current = el.animate(
+        [
+          { transform: `translateY(${d.delta}px)` },
+          { transform: 'translateY(0)' },
+        ],
+        { duration: 180, easing: 'ease-out' },
+      )
+    }
+    releaseOffset.current = target === p.sheet ? 0 : d.delta
+    p.onSheetChange(target)
+  }
+  const nav = p.timelineNavigation
+  const summary = !p.isDesktop && p.sheet === 'summary'
   return (
     <>
-      {isVisible ? (
+      {modal && (
         <button
-          type="button"
-          onClick={onClose}
-          className="absolute inset-0 z-[390] bg-slate-950/35 backdrop-blur-[1px]"
-          aria-label="关闭活动详情面板"
+          tabIndex={-1}
+          className="absolute inset-0 z-[460] bg-slate-950/20"
+          aria-label="收起全屏详情"
+          onClick={() => p.onSheetChange('half')}
         />
-      ) : null}
-
+      )}
       <aside
-        className={`absolute left-0 top-0 z-[400] hidden h-full w-full max-w-[440px] transform border-r border-orange-200/80 bg-[#fffaf5]/97 shadow-[0_24px_70px_rgba(124,45,18,0.2)] backdrop-blur-md transition-transform duration-300 will-change-transform [contain:layout_paint] md:block ${
-          isVisible ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        ref={panel}
+        tabIndex={-1}
+        role={modal ? 'dialog' : 'complementary'}
+        aria-modal={modal || undefined}
+        aria-label="活动回忆"
+        aria-hidden={!open}
+        inert={!open}
+        data-map-edge={p.isDesktop ? 'right' : 'bottom'}
+        data-map-active={open}
+        data-sheet={p.sheet}
+        className={`memory-side-panel memory-detail ${open ? 'is-open' : ''} ${modal ? 'is-full' : ''}`}
       >
-        <div className="flex h-full flex-col overflow-hidden">
-          <header className="flex items-center justify-between border-b border-orange-100 bg-[#fffaf5]/90 px-4 py-3.5">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 text-white">
-                <UiIcon name="sparkles" className="h-[18px] w-[18px]" />
+        <header
+          className="detail-drag-header shrink-0 px-4"
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={stopDrag}
+          onPointerCancel={stopDrag}
+        >
+          <div
+            className="mx-auto mt-2 h-1 w-10 rounded-full bg-orange-200 lg:hidden"
+            aria-hidden="true"
+          />
+          <div className="flex min-h-12 items-center justify-between gap-2">
+            {p.onBackToList ? (
+              <button
+                className="memory-button !border-0 !bg-transparent !px-0"
+                onClick={p.onBackToList}
+              >
+                <UiIcon name="arrow" className="h-4 w-4 rotate-180" />
+                返回列表
+              </button>
+            ) : (
+              <span className="text-xs font-semibold text-orange-800">
+                活动回忆
               </span>
-              <div>
-                <h2 className="text-sm font-extrabold text-slate-950">活动回忆</h2>
-                <p className="text-[11px] text-slate-500">沿着坐标，再见那一天</p>
-              </div>
+            )}
+            <div className="flex items-center gap-1">
+              {!p.isDesktop && (
+                <button
+                  className="memory-button !border-0 !bg-transparent"
+                  onClick={() =>
+                    p.onSheetChange(
+                      summary ? 'half' : p.sheet === 'half' ? 'full' : 'half',
+                    )
+                  }
+                >
+                  <StateIcon kind="disclosure" active={p.sheet !== 'full'} />
+                  {summary ? '展开' : p.sheet === 'half' ? '全屏' : '半屏'}
+                </button>
+              )}
+              {!p.isDesktop && !summary && (
+                <button
+                  className="memory-button !border-0 !bg-transparent"
+                  onClick={() => p.onSheetChange('summary')}
+                >
+                  收起
+                </button>
+              )}
+              <button
+                className="memory-button icon !border-0 !bg-transparent"
+                aria-label="关闭详情"
+                onClick={p.onClose}
+              >
+                <UiIcon name="close" className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-orange-100 bg-white text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
-              aria-label="关闭面板"
+          </div>
+        </header>
+        {p.activity && (
+          <>
+            <div
+              className={`detail-drag-header shrink-0 px-4 ${summary ? '' : 'pb-3'}`}
+              onPointerDown={startDrag}
+              onPointerMove={moveDrag}
+              onPointerUp={stopDrag}
+              onPointerCancel={stopDrag}
             >
-              <UiIcon name="close" className="h-4 w-4" />
-            </button>
-          </header>
-
-          {activity && isDesktopViewport ? (
-            <DetailContent
-              activity={activity}
-              isOpen={isVisible}
-              shouldLoadVideos={isDesktopViewport}
+              <h2
+                className={`memory-lift-title ${summary ? 'truncate text-base' : 'line-clamp-2 text-lg leading-6 lg:text-xl'} font-bold`}
+              >
+                {p.activity.title}
+              </h2>
+              {!summary && (
+                <p className="mt-1.5 text-sm leading-5 text-slate-600">
+                  {p.activity.date} · {p.activity.city} · {p.activity.venue}
+                </p>
+              )}
+            </div>
+            {!p.isDesktop && nav && (
+              <nav
+                className="grid shrink-0 grid-cols-[44px_minmax(0,1fr)_44px] items-center px-3 pb-1"
+                aria-label="相邻活动导航"
+              >
+                <button
+                  className="memory-button icon !border-0 !bg-transparent"
+                  disabled={!nav.previousActivity}
+                  data-press-feedback=""
+                  aria-label="上一场活动"
+                  onClick={() =>
+                    nav.previousActivity && nav.onSelect(nav.previousActivity)
+                  }
+                >
+                  <UiIcon name="arrow" className="h-4 w-4 rotate-180" />
+                </button>
+                <button
+                  className="min-h-11 min-w-0 text-center text-xs text-slate-600"
+                  aria-label="在地图中重新定位当前活动"
+                  onClick={nav.onFocusCurrent}
+                >
+                  <span className="block truncate">
+                    {summary
+                      ? `${p.activity.date} · ${p.activity.city} · ${p.activity.venue}`
+                      : '在地图中定位'}
+                  </span>
+                  <span>
+                    {nav.currentIndex} / {nav.totalCount}
+                  </span>
+                </button>
+                <button
+                  className="memory-button icon !border-0 !bg-transparent"
+                  disabled={!nav.nextActivity}
+                  data-press-feedback=""
+                  aria-label="下一场活动"
+                  onClick={() =>
+                    nav.nextActivity && nav.onSelect(nav.nextActivity)
+                  }
+                >
+                  <UiIcon name="arrow" className="h-4 w-4" />
+                </button>
+              </nav>
+            )}
+            <DetailBody
+              key={p.activity.id}
+              activity={p.activity}
+              visible={open && !summary}
+              stable={stableActivity === p.activity.id}
             />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-slate-600">
-              <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-700">
-                <UiIcon name="pin" className="h-6 w-6" />
-              </span>
-              点击地图上的活动缩略图查看详情
-            </div>
-          )}
-        </div>
-      </aside>
-
-      <aside
-        className={`absolute inset-x-0 bottom-0 z-[400] max-h-[68vh] transform rounded-t-[28px] border border-orange-200/80 bg-[#fffaf5]/97 shadow-[0_-18px_60px_rgba(124,45,18,0.18)] backdrop-blur-md transition-transform duration-300 will-change-transform [contain:layout_paint] md:hidden ${
-          isVisible ? 'translate-y-0' : 'translate-y-full'
-        }`}
-      >
-        <div className="mx-auto mt-2.5 h-1.5 w-11 rounded-full bg-orange-200" />
-
-        <div className="flex h-[calc(68vh-0.65rem)] flex-col overflow-hidden">
-          <header className="flex items-center justify-between border-b border-orange-100 px-3.5 py-2.5">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-600 text-white">
-                <UiIcon name="sparkles" className="h-4 w-4" />
-              </span>
-              <h2 className="text-sm font-extrabold text-slate-950">活动回忆</h2>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-orange-100 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
-              aria-label="关闭抽屉"
-            >
-              <UiIcon name="collapse" className="h-4 w-4" />
-              收起
-            </button>
-          </header>
-
-          {activity && timelineNavigation ? (
-            <MobileTimelineNavigation activity={activity} navigation={timelineNavigation} />
-          ) : null}
-
-          {activity && !isDesktopViewport ? (
-            <DetailContent
-              activity={activity}
-              isOpen={isVisible}
-              shouldLoadVideos={!isDesktopViewport}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center px-4 text-sm text-slate-600">
-              点击地图上的活动缩略图查看详情
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </aside>
     </>
   )

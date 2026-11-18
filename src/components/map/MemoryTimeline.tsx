@@ -10,9 +10,10 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
-  type WheelEvent,
 } from 'react'
+import { TimelineScrollGate } from '@/lib/mapSelection'
 import UiIcon from '@/components/common/UiIcon'
+import StateIcon from '@/components/common/StateIcon'
 import type { Activity } from '@/types/activity'
 
 type TimelineGroup = {
@@ -58,7 +59,7 @@ type TimelineRailProps = {
   onToggleGroup: (date: string) => void
   onKeyDown: (event: KeyboardEvent<HTMLButtonElement>, activity: Activity) => void
   onScroll: (scroller: HTMLDivElement) => void
-  onWheel: (event: WheelEvent<HTMLDivElement>) => void
+  onWheel: (event: globalThis.WheelEvent) => void
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
   onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void
   onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -78,7 +79,7 @@ type GroupPickerProps = {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DRAG_THRESHOLD_PX = 6
-const SCROLL_IDLE_MS = 120
+const SCROLL_IDLE_MS = 180
 const MIN_GROUP_GAP_PX = 48
 const MAX_GROUP_GAP_PX = 112
 
@@ -148,14 +149,14 @@ function GroupPicker({ id, group, onSelect }: GroupPickerProps) {
       id={id}
       role="menu"
       aria-label={`${group.date} 的活动`}
-      className="absolute bottom-[calc(100%+10px)] left-1/2 z-20 w-[min(340px,calc(100vw-1.5rem))] -translate-x-1/2 rounded-2xl border border-orange-200/80 bg-[#fffaf5] p-2 shadow-[0_18px_48px_rgba(124,45,18,0.2)] backdrop-blur-md transition duration-150 motion-reduce:transition-none"
+      className="absolute bottom-[calc(100%+10px)] left-1/2 z-20 w-[min(340px,calc(100vw-1.5rem))] -translate-x-1/2 rounded-2xl border border-orange-200/80 bg-[#fffaf5] p-2 shadow-[0_18px_48px_rgba(124,45,18,0.2)]  transition duration-150 motion-reduce:transition-none"
     >
       <div className="mb-1.5 flex items-center justify-between px-2 py-1">
         <div>
           <p className="text-xs font-extrabold text-slate-950">{group.date}</p>
-          <p className="text-[10px] font-medium text-slate-500">同日 {group.activities.length} 场活动</p>
+          <p className="text-xs font-medium text-slate-500">同日 {group.activities.length} 场活动</p>
         </div>
-        <span className="rounded-full bg-blue-600 px-2 py-1 text-[10px] font-black text-white">
+        <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-black text-white">
           {group.activities.length}
         </span>
       </div>
@@ -173,7 +174,7 @@ function GroupPicker({ id, group, onSelect }: GroupPickerProps) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-extrabold text-slate-950">{activity.city}</span>
-              <span className="block truncate text-[10px] font-medium text-slate-500">
+              <span className="block truncate text-xs font-medium text-slate-500">
                 {activity.title}
               </span>
             </span>
@@ -195,7 +196,7 @@ function TimelineHoverPreview({ preview }: { preview: TimelinePreviewState | nul
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute bottom-[calc(100%+10px)] z-30 w-[292px] -translate-x-1/2 rounded-2xl border border-orange-200/80 bg-[#fffaf5] p-2.5 shadow-[0_16px_42px_rgba(124,45,18,0.18)] backdrop-blur-md"
+      className="pointer-events-none absolute bottom-[calc(100%+10px)] z-30 w-[292px] -translate-x-1/2 rounded-2xl border border-orange-200/80 bg-[#fffaf5] p-2.5 shadow-[0_16px_42px_rgba(124,45,18,0.18)] "
       style={{ left }}
     >
       <div className="flex items-center gap-3">
@@ -210,12 +211,12 @@ function TimelineHoverPreview({ preview }: { preview: TimelinePreviewState | nul
           />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+          <span className="mb-1 flex items-center gap-1.5 text-xs font-bold text-slate-500">
             <span>{activity.date}</span>
             <span aria-hidden="true">·</span>
             <span>{activity.city}</span>
             {groupSize > 1 ? (
-              <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">
+              <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-black text-white">
                 同日 {groupSize} 场
               </span>
             ) : null}
@@ -223,7 +224,7 @@ function TimelineHoverPreview({ preview }: { preview: TimelinePreviewState | nul
           <span className="line-clamp-2 text-xs font-extrabold leading-4 text-slate-950">
             {activity.title}
           </span>
-          <span className="mt-1 block text-[10px] font-semibold text-orange-700">
+          <span className="mt-1 block text-xs font-semibold text-orange-700">
             点击节点定位活动
           </span>
         </span>
@@ -271,6 +272,13 @@ function TimelineRail({
     onSelect(focusedActivity)
   }
 
+  useEffect(() => {
+    const rail = scrollRef.current
+    if (!rail) return
+    rail.addEventListener('wheel', onWheel, { passive: false })
+    return () => rail.removeEventListener('wheel', onWheel)
+  }, [scrollRef, onWheel, groups.length])
+
   if (groups.length === 0) {
     return (
       <div className="flex h-12 flex-1 items-center justify-center px-4 text-center text-xs font-bold text-slate-500">
@@ -282,17 +290,16 @@ function TimelineRail({
   return (
     <div
       ref={scrollRef}
-      className={`memory-timeline-scrollbar relative h-14 min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-8 [scroll-snap-type:x_mandatory] [touch-action:pan-x] ${
+      className={`memory-timeline-scrollbar relative h-[68px] min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [scroll-snap-type:x_mandatory] [touch-action:pan-x] ${
         isDragging ? 'cursor-grabbing select-none [scroll-snap-type:none]' : 'cursor-grab'
       }`}
       onScroll={(event) => onScroll(event.currentTarget)}
-      onWheel={onWheel}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <div className="relative flex h-full min-w-max items-end pb-0.5">
+      <div className="relative flex h-full w-max min-w-full items-center pb-1" style={{ paddingInline: 'max(0px, calc(var(--rail-width, 200px) / 2 - 22px))' }}>
         <span className="pointer-events-none absolute bottom-[21px] left-0 right-0 h-0.5 rounded-full bg-orange-200" />
 
         {groups.map((group, groupIndex) => {
@@ -318,7 +325,7 @@ function TimelineRail({
               style={{ marginLeft: groupIndex === 0 ? 0 : Math.max(4, group.gapFromPrevious - 44) }}
             >
               {showYear ? (
-                <span className="pointer-events-none absolute top-0 whitespace-nowrap text-[9px] font-black tracking-[0.12em] text-orange-700">
+                <span className="pointer-events-none absolute top-0 whitespace-nowrap text-[11px] font-black tracking-[0.12em] text-orange-700">
                   {group.year}
                 </span>
               ) : null}
@@ -364,23 +371,21 @@ function TimelineRail({
                 className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf5]"
               >
                 <span
-                  className={`relative flex items-center justify-center rounded-full border-2 border-[#fffaf5] font-black shadow-sm transition-[width,height,background-color,box-shadow,transform] duration-150 ease-out motion-reduce:transition-none ${
+                  className={`relative flex items-center justify-center rounded-full border-2 border-[#fffaf5] font-black shadow-sm transition-[background-color,box-shadow,transform] duration-150 ease-out motion-reduce:transition-none ${
                     isSelectedGroup
                       ? 'h-[22px] w-[22px] bg-blue-600 text-white shadow-[0_0_0_4px_rgba(37,99,235,0.16)]'
                       : isCursorGroup
                         ? 'h-[18px] w-[18px] bg-[#FC966E] text-white shadow-[0_0_0_3px_rgba(252,150,110,0.18)]'
                         : 'h-3 w-3 bg-[#FC966E] text-transparent group-hover:scale-125'
-                  } ${isMultiActivity ? 'h-7 min-w-7 px-1.5 text-[10px] text-white' : ''}`}
+                  } ${isMultiActivity ? 'h-7 min-w-7 px-1.5 text-xs text-white' : ''}`}
                 >
                   {isMultiActivity ? group.activities.length : ''}
                 </span>
               </button>
 
-              {isCursorGroup ? (
-                <span className="pointer-events-none absolute bottom-0 translate-y-full whitespace-nowrap pt-0.5 text-[9px] font-extrabold text-slate-600">
-                  {formatDisplayDate(group.date)}
-                </span>
-              ) : null}
+              <span className="pointer-events-none absolute bottom-0 whitespace-nowrap text-[11px] font-extrabold text-slate-600">
+                {formatDisplayDate(group.date)}
+              </span>
             </div>
           )
         })}
@@ -414,7 +419,7 @@ export default function MemoryTimeline({
   const desktopScrollRef = useRef<HTMLDivElement | null>(null)
   const mobileScrollRef = useRef<HTMLDivElement | null>(null)
   const scrollIdleTimeoutRef = useRef<number | null>(null)
-  const programmaticScrollersRef = useRef(new Set<HTMLDivElement>())
+  const scrollGate = useRef(new TimelineScrollGate())
   const suppressNodeClickRef = useRef(false)
   const dragStateRef = useRef<{
     pointerId: number
@@ -431,11 +436,11 @@ export default function MemoryTimeline({
   const previousActivity =
     sortedActivities.length === 0
       ? null
-      : currentIndex > 0
-        ? sortedActivities[currentIndex - 1]
-        : cursorActivity
-          ? null
-          : sortedActivities[sortedActivities.length - 1]
+      : cursorIndex < 0
+        ? sortedActivities[sortedActivities.length - 1]
+        : currentIndex > 0
+          ? sortedActivities[currentIndex - 1]
+          : null
   const nextActivity =
     sortedActivities.length === 0
       ? null
@@ -464,8 +469,8 @@ export default function MemoryTimeline({
       if (!node) {
         return
       }
-      programmaticScrollersRef.current.add(scroller)
-      const targetLeft = node.offsetLeft - (scroller.clientWidth - node.offsetWidth) / 2
+      scrollGate.current.beginProgrammatic()
+      const targetLeft = scroller.scrollLeft + node.getBoundingClientRect().left + node.offsetWidth / 2 - scroller.getBoundingClientRect().left - scroller.clientWidth / 2
       scroller.scrollTo({
         left: Math.max(0, targetLeft),
         behavior: reduceMotion ? 'auto' : 'smooth',
@@ -483,6 +488,19 @@ export default function MemoryTimeline({
       scrollGroupIntoView(cursorActivityId)
     }
   }, [cursorActivityId, scrollGroupIntoView])
+
+  useEffect(() => {
+    const rails = [desktopScrollRef.current, mobileScrollRef.current].filter((el): el is HTMLDivElement => Boolean(el))
+    const observer = new ResizeObserver(entries => {
+      scrollGate.current.beginProgrammatic()
+      if (scrollIdleTimeoutRef.current !== null) clearTimeout(scrollIdleTimeoutRef.current)
+      entries.forEach(entry => (entry.target as HTMLElement).style.setProperty('--rail-width', `${entry.contentRect.width}px`))
+      if (cursorActivityId) scrollGroupIntoView(cursorActivityId)
+    })
+    rails.forEach(el => observer.observe(el))
+    return () => observer.disconnect()
+  }, [cursorActivityId, scrollGroupIntoView, isDetailOpen, isListOpen])
+
 
   useEffect(() => {
     setOpenGroupDate((current) =>
@@ -530,11 +548,10 @@ export default function MemoryTimeline({
       if (scrollIdleTimeoutRef.current !== null) {
         window.clearTimeout(scrollIdleTimeoutRef.current)
       }
+      const ticket = scrollGate.current.ticket()
+      if (ticket === null) return
       scrollIdleTimeoutRef.current = window.setTimeout(() => {
-        if (programmaticScrollersRef.current.has(scroller)) {
-          programmaticScrollersRef.current.delete(scroller)
-          return
-        }
+        if (!scrollGate.current.consume(ticket)) return
         const center = scroller.scrollLeft + scroller.clientWidth / 2
         const nodes = Array.from(
           scroller.querySelectorAll<HTMLElement>('[data-timeline-group]')
@@ -543,7 +560,7 @@ export default function MemoryTimeline({
         let closestDistance = Number.POSITIVE_INFINITY
 
         for (const node of nodes) {
-          const nodeCenter = node.offsetLeft + node.offsetWidth / 2
+          const nodeCenter = scroller.scrollLeft + node.getBoundingClientRect().left - scroller.getBoundingClientRect().left + node.offsetWidth / 2
           const distance = Math.abs(nodeCenter - center)
           if (distance < closestDistance) {
             closestDistance = distance
@@ -559,24 +576,30 @@ export default function MemoryTimeline({
         const nextCursor =
           group.activities.find((activity) => activity.id === cursorActivityId) ??
           group.activities[0]
-        onCursorChange(nextCursor.id)
+        if (group.activities.length > 1) setOpenGroupDate(group.date)
+        if (nextCursor.id !== cursorActivityId) onCursorChange(nextCursor.id)
       }, SCROLL_IDLE_MS)
     },
     [cursorActivityId, groups, onCursorChange]
   )
 
-  const handleWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
+  const handleWheel = useCallback((event: globalThis.WheelEvent) => {
     const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX
     if (delta === 0) {
       return
     }
+    scrollGate.current.beginUser()
     setPreviewState(null)
     event.preventDefault()
-    event.currentTarget.scrollLeft += delta
+    ;(event.currentTarget as HTMLDivElement).scrollLeft += delta
   }, [])
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'mouse' || event.button !== 0) {
+    if (event.pointerType !== 'mouse') {
+      scrollGate.current.beginUser()
+      return
+    }
+    if (event.button !== 0) {
       return
     }
 
@@ -586,6 +609,7 @@ export default function MemoryTimeline({
       return
     }
 
+    scrollGate.current.beginUser()
     setPreviewState(null)
     suppressNodeClickRef.current = false
     dragStateRef.current = {
@@ -690,7 +714,7 @@ export default function MemoryTimeline({
     (activity: Activity) => {
       setPreviewState(null)
       setOpenGroupDate(null)
-      onCursorChange(activity.id)
+      scrollGate.current.beginProgrammatic()
       onSelect(activity)
     },
     [onCursorChange, onSelect]
@@ -737,14 +761,15 @@ export default function MemoryTimeline({
     <>
       <div
         ref={desktopRootRef}
-        className={`pointer-events-auto absolute bottom-4 z-[410] hidden items-center rounded-[22px] border border-orange-200/80 bg-[#fffaf5]/95 shadow-[0_16px_44px_rgba(124,45,18,0.14)] backdrop-blur-md transition-[left,right,height,max-width] duration-300 motion-reduce:transition-none md:flex ${
-          isDetailOpen
-            ? 'left-[460px] right-5 h-[72px] max-w-none'
-            : 'left-5 right-5 mx-auto h-[84px] max-w-[1180px]'
+        data-map-edge="bottom"
+        className={`pointer-events-auto absolute bottom-4 z-[410] hidden items-center rounded-[22px] border border-orange-200/80 bg-[#fffaf5] shadow-[0_16px_44px_rgba(124,45,18,0.14)]   lg:flex ${
+          isDetailOpen || isListOpen
+            ? 'left-4 right-[432px] h-[84px]'
+            : 'left-4 right-4 h-[84px]'
         }`}
         aria-label="活动时光轨道"
       >
-        <div className="flex h-full w-[180px] shrink-0 items-center gap-2 border-r border-orange-100 px-3">
+        <div className="flex h-full w-[184px] shrink-0 items-center gap-2 border-r border-orange-100 px-3">
           <button
             type="button"
             onClick={onResetAll}
@@ -762,7 +787,7 @@ export default function MemoryTimeline({
             <span className="block truncate text-xs font-extrabold text-slate-950">
               {cursorActivity ? cursorActivity.date : '全部回忆'}
             </span>
-            <span className="block truncate text-[10px] font-semibold text-slate-500">
+            <span className="block truncate text-xs font-semibold text-slate-500">
               {cursorActivity && currentPosition
                 ? `${cursorActivity.city} · ${currentPosition} / ${sortedActivities.length}`
                 : `共 ${activities.length} / ${totalCount} 场`}
@@ -782,6 +807,7 @@ export default function MemoryTimeline({
             onClick={() => previousActivity && handleSelect(previousActivity)}
             disabled={!previousActivity}
             className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-orange-100 bg-white text-slate-700 transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-35"
+            data-press-feedback=""
             aria-label="上一场活动"
           >
             <UiIcon name="arrow" className="h-4 w-4 rotate-180" />
@@ -791,15 +817,18 @@ export default function MemoryTimeline({
             onClick={onToggleList}
             className={`flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${listButtonClassName}`}
             aria-pressed={isListOpen}
+            aria-expanded={isListOpen}
+            aria-label={isListOpen ? '关闭活动列表' : '打开活动列表'}
           >
-            <UiIcon name="list" className="h-4 w-4" />
-            活动列表
+            <StateIcon kind="list" active={isListOpen} />
+            {isListOpen ? '关闭列表' : '活动列表'}
           </button>
           <button
             type="button"
             onClick={() => nextActivity && handleSelect(nextActivity)}
             disabled={!nextActivity}
             className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-orange-100 bg-white text-slate-700 transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-35"
+            data-press-feedback=""
             aria-label="下一场活动"
           >
             <UiIcon name="arrow" className="h-4 w-4" />
@@ -817,7 +846,8 @@ export default function MemoryTimeline({
       {isDetailOpen ? null : (
         <div
           ref={mobileRootRef}
-          className="pointer-events-auto absolute inset-x-2 bottom-2 z-[410] rounded-[22px] border border-orange-200/80 bg-[#fffaf5]/96 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_14px_40px_rgba(124,45,18,0.16)] backdrop-blur-md md:hidden"
+          data-map-edge="bottom"
+          className="pointer-events-auto absolute inset-x-2 bottom-2 z-[410] rounded-[22px] border border-orange-200/80 bg-[#fffaf5] px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_14px_40px_rgba(124,45,18,0.16)]  lg:hidden"
           aria-label="活动时光轨道"
         >
           <div className="flex h-10 items-center gap-1.5">
@@ -830,7 +860,7 @@ export default function MemoryTimeline({
               <span className="block truncate text-xs font-extrabold text-slate-950">
                 {cursorActivity ? `${cursorActivity.date} · ${cursorActivity.city}` : '全部回忆'}
               </span>
-              <span className="block text-[10px] font-semibold text-slate-500">
+              <span className="block text-xs font-semibold text-slate-500">
                 {currentPosition ? `${currentPosition} / ${sortedActivities.length}` : `${activities.length} 场活动`}
               </span>
             </button>
@@ -858,17 +888,19 @@ export default function MemoryTimeline({
               className={`flex min-h-11 min-w-11 items-center justify-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${listButtonClassName}`}
               aria-label={isListOpen ? '关闭活动列表' : '打开活动列表'}
               aria-pressed={isListOpen}
+              aria-expanded={isListOpen}
             >
-              <UiIcon name="list" className="h-4 w-4" />
+              <StateIcon kind="list" active={isListOpen} />
             </button>
           </div>
 
-          <div className="flex h-12 items-center gap-1">
+          <div className="flex h-[68px] items-center gap-1">
             <button
               type="button"
               onClick={() => previousActivity && handleSelect(previousActivity)}
               disabled={!previousActivity}
               className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-30"
+              data-press-feedback=""
               aria-label="上一场活动"
             >
               <UiIcon name="arrow" className="h-4 w-4 rotate-180" />
@@ -883,6 +915,7 @@ export default function MemoryTimeline({
               onClick={() => nextActivity && handleSelect(nextActivity)}
               disabled={!nextActivity}
               className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-30"
+              data-press-feedback=""
               aria-label="下一场活动"
             >
               <UiIcon name="arrow" className="h-4 w-4" />

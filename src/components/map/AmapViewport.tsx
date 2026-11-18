@@ -20,12 +20,14 @@ import {
   layoutViewportMarkers,
   type ViewportMarkerGroup,
 } from '@/lib/markerLayout'
+import type { ViewportInsets } from '@/components/hooks/useMapInsets'
 import type { Activity } from '@/types/activity'
 
 type AmapViewportProps = {
   activities: Activity[]
   selectedActivity: Activity | null
   selectedActivityId: string | null
+  viewportInsets: ViewportInsets
   fitAllRequest: number
   focusSelectedRequest: number
   onSelect: (activity: Activity) => void
@@ -114,12 +116,14 @@ type VisibleLayoutNode = {
   element: HTMLDivElement
 }
 
-const FOCUS_ANIMATION_DURATION_MS = 480
+const FOCUS_ANIMATION_DURATION_MS = 420
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const avoidInsets = (insets: ViewportInsets) => [insets.top + 52, insets.bottom + 52, insets.left + 52, insets.right + 52]
 const CONNECTOR_MIN_LENGTH_PX = 1
-const MARKER_SPLIT_DURATION_MS = 260
+const MARKER_SPLIT_DURATION_MS = 220
 const CLUSTER_EXIT_DURATION_MS = 160
 const MARKER_MERGE_DURATION_MS = 220
-const CLUSTER_ENTER_DURATION_MS = 240
+const CLUSTER_ENTER_DURATION_MS = 200
 const MARKER_ENTER_EASING = 'cubic-bezier(0.16, 1, 0.3, 1)'
 const MARKER_EXIT_EASING = 'cubic-bezier(0.4, 0, 1, 1)'
 
@@ -191,28 +195,17 @@ const haveSameLayoutTopology = (
   return nextNodes.every(({ key }) => previousKeys.has(key))
 }
 
-const fitActivities = (map: AMapMap, markers: AMapMarker[], activities: Activity[]) => {
+const fitActivities = (map: AMapMap, markers: AMapMarker[], activities: Activity[], insets: ViewportInsets) => {
   if (markers.length === 0 || activities.length === 0) {
     return
   }
 
   try {
-    if (markers.length === 1) {
-      map.setZoomAndCenter(
-        AMAP_INITIAL_SINGLE_MARKER_ZOOM,
-        toAmapPosition(activities[0]),
-        false,
-        550
-      )
-    } else if (map.setFitView) {
-      map.setFitView(markers, false, [260, 80, 120, 80], AMAP_INITIAL_FIT_MAX_ZOOM)
+    if (map.setFitView) {
+      // AMap avoid order is top, bottom, left, right (not CSS clockwise order).
+      map.setFitView(markers, reduceMotion(), avoidInsets(insets), markers.length === 1 ? AMAP_INITIAL_SINGLE_MARKER_ZOOM : AMAP_INITIAL_FIT_MAX_ZOOM)
     } else {
-      map.setZoomAndCenter(
-        AMAP_INITIAL_FIT_MAX_ZOOM,
-        toAmapPosition(activities[0]),
-        false,
-        550
-      )
+      map.setZoomAndCenter(AMAP_INITIAL_FIT_MAX_ZOOM, toAmapPosition(activities[0]), reduceMotion(), FOCUS_ANIMATION_DURATION_MS)
     }
   } catch {
     map.setCenter(toAmapPosition(activities[0]))
@@ -229,6 +222,8 @@ const createMarkerContent = (
   const marker = document.createElement('div')
   marker.className = isSelected ? 'activity-marker selected' : 'activity-marker'
   marker.setAttribute('aria-label', activity.title)
+  marker.setAttribute('role', 'button')
+  marker.tabIndex = 0
 
   const image = document.createElement('img')
   image.src = activity.markerThumbnail
@@ -278,6 +273,8 @@ const createClusterContent = (group: ViewportMarkerGroup): ClusterMarkerElements
   const shell = document.createElement('div')
   shell.className = 'amap-activity-cluster-shell'
   shell.setAttribute('aria-label', label)
+  shell.setAttribute('role', 'button')
+  shell.tabIndex = 0
 
   const marker = document.createElement('div')
   marker.className = 'activity-marker-cluster'
@@ -317,6 +314,7 @@ function AmapViewportComponent({
   selectedActivity,
   selectedActivityId,
   fitAllRequest,
+  viewportInsets,
   focusSelectedRequest,
   onSelect,
 }: AmapViewportProps) {
@@ -338,7 +336,11 @@ function AmapViewportComponent({
   const transitionCleanupRef = useRef<(() => void) | null>(null)
   const transitionGenerationRef = useRef(0)
   const pendingAnimateTopologyRef = useRef(false)
-  const hasFitInitialMarkersRef = useRef(false)
+  const insetsRef = useRef(viewportInsets)
+  const userMovedRef = useRef(false)
+  const navigationZoomRef = useRef(AMAP_FOCUS_MIN_ZOOM)
+  const lastNavigationRef = useRef({ id: '', request: -1, fit: -1 })
+  insetsRef.current = viewportInsets
   const selectedActivityIdRef = useRef<string | null>(selectedActivityId)
   const focusFrameRef = useRef<number | null>(null)
   const layoutFrameRef = useRef<number | null>(null)
@@ -434,12 +436,12 @@ function AmapViewportComponent({
 
       try {
         if (map.setFitView && markers.length > 1) {
-          map.setFitView(markers, false, [96, 72, 96, 72], MARKER_EXPANSION_MIN_ZOOM)
+          map.setFitView(markers, reduceMotion(), avoidInsets(insetsRef.current), MARKER_EXPANSION_MIN_ZOOM)
         } else {
           map.setZoomAndCenter(
             MARKER_EXPANSION_MIN_ZOOM,
             toAmapPosition(groupActivities[0]),
-            false,
+            reduceMotion(),
             FOCUS_ANIMATION_DURATION_MS
           )
         }
@@ -447,7 +449,7 @@ function AmapViewportComponent({
         map.setZoomAndCenter(
           MARKER_EXPANSION_MIN_ZOOM,
           toAmapPosition(groupActivities[0]),
-          false,
+          reduceMotion(),
           FOCUS_ANIMATION_DURATION_MS
         )
       }
@@ -533,6 +535,7 @@ function AmapViewportComponent({
         })
         const clickHandler = () => focusCluster(group.key)
 
+        elements.shell.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); clickHandler() } }
         clusterMarker.on('click', clickHandler)
         clusterMarkersByKeyRef.current.set(group.key, clusterMarker)
         clusterElementsByKeyRef.current.set(group.key, elements)
@@ -816,7 +819,14 @@ function AmapViewportComponent({
         }
 
         try {
-          map.setZoomAndCenter(targetZoom, position, false, FOCUS_ANIMATION_DURATION_MS)
+          const amap = amapRef.current
+          const bounds = insetsRef.current
+          const scale = 2 ** (targetZoom - map.getZoom())
+          const point = getPixelPosition(map.lngLatToContainer(position))
+          const offsetX = (bounds.left - bounds.right) / 2
+          const offsetY = (bounds.top - bounds.bottom) / 2
+          const center = amap ? getLngLatPosition(map.containerToLngLat(new amap.Pixel(point.x - offsetX / scale, point.y - offsetY / scale))) : position
+          map.setZoomAndCenter(targetZoom, center, reduceMotion(), FOCUS_ANIMATION_DURATION_MS)
         } catch {
           map.setCenter(position)
         }
@@ -857,6 +867,9 @@ function AmapViewportComponent({
           zooms: [AMAP_MAP_MIN_ZOOM, AMAP_MAP_MAX_ZOOM],
           resizeEnable: true,
           viewMode: '2D',
+          features: ['bg', 'road', 'point'],
+          mapStyle: 'amap://styles/whitesmoke',
+          showLabel: true,
         })
         setLoadError(null)
         setIsMapReady(true)
@@ -907,11 +920,14 @@ function AmapViewportComponent({
 
     const handleZoomEnded = () => scheduleViewportLayout(true)
     const handleMoveEnded = () => scheduleViewportLayout(false)
+    const handleUserMove = () => { userMovedRef.current = true }
+    map.on('dragstart', handleUserMove)
     map.on('zoomend', handleZoomEnded)
     map.on('moveend', handleMoveEnded)
     scheduleViewportLayout()
 
     return () => {
+      map.off('dragstart', handleUserMove)
       map.off('zoomend', handleZoomEnded)
       map.off('moveend', handleMoveEnded)
     }
@@ -980,6 +996,7 @@ function AmapViewportComponent({
         }
       }
 
+      elements.marker.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); clickHandler() } }
       marker.on('click', clickHandler)
       markersByIdRef.current.set(activity.id, marker)
       markerElementsByIdRef.current.set(activity.id, elements)
@@ -991,11 +1008,6 @@ function AmapViewportComponent({
       map.add(addedMarkers)
     }
 
-    const markers = getCurrentMarkers()
-    if (markers.length > 0 && !selectedActivityIdRef.current && !hasFitInitialMarkersRef.current) {
-      hasFitInitialMarkersRef.current = true
-      fitActivities(map, markers, activities)
-    }
     scheduleViewportLayout(true)
   }, [activities, getCurrentMarkers, isMapReady, scheduleViewportLayout])
 
@@ -1016,41 +1028,27 @@ function AmapViewportComponent({
 
   useEffect(() => {
     const map = mapRef.current
-    if (!isMapReady || !map || fitAllRequest === 0) {
-      return
+    if (!isMapReady || !map) return
+    if (focusFrameRef.current !== null) {
+      window.cancelAnimationFrame(focusFrameRef.current)
+      focusFrameRef.current = null
     }
-
-    resetMarkersToRealPositions(activities)
-    fitActivities(map, getCurrentMarkers(), activities)
-    scheduleViewportLayout()
-  }, [
-    activities,
-    fitAllRequest,
-    getCurrentMarkers,
-    isMapReady,
-    resetMarkersToRealPositions,
-    scheduleViewportLayout,
-  ])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!isMapReady || !map || !selectedPosition) {
-      return
+    const last = lastNavigationRef.current
+    const freshSelection = last.id !== (selectedActivityId ?? '') || last.request !== focusSelectedRequest
+    const freshFit = last.fit !== fitAllRequest
+    lastNavigationRef.current = { id: selectedActivityId ?? '', request: focusSelectedRequest, fit: fitAllRequest }
+    if (freshSelection || freshFit) userMovedRef.current = false
+    if (userMovedRef.current) return
+    if (selectedPosition) {
+      if (freshSelection) navigationZoomRef.current = AMAP_FOCUS_MIN_ZOOM
+      focusPosition(selectedPosition, navigationZoomRef.current)
+    } else {
+      resetMarkersToRealPositions(activities)
+      fitActivities(map, getCurrentMarkers(), activities, viewportInsets)
+      scheduleViewportLayout()
     }
-
-    const targetZoom = Math.max(map.getZoom(), AMAP_FOCUS_MIN_ZOOM)
-
-    focusPosition(selectedPosition, targetZoom)
-  }, [focusPosition, isMapReady, selectedPosition])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!isMapReady || !map || !selectedPosition || focusSelectedRequest === 0) {
-      return
-    }
-
-    focusPosition(selectedPosition, AMAP_FOCUS_MIN_ZOOM)
-  }, [focusPosition, focusSelectedRequest, isMapReady, selectedPosition])
+  }, [activities, fitAllRequest, focusSelectedRequest, viewportInsets, selectedPosition, selectedActivityId,
+    isMapReady, focusPosition, getCurrentMarkers, resetMarkersToRealPositions, scheduleViewportLayout])
 
   return (
     <div className="relative h-full w-full">

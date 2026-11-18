@@ -1,741 +1,303 @@
-﻿'use client'
+'use client'
 
-import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet'
-import ActivityFilterBar from '@/components/filters/ActivityFilterBar'
-import ActivityResultList from '@/components/map/ActivityResultList'
-import MemoryTimeline from '@/components/map/MemoryTimeline'
-import ActivityDetailPanel from '@/components/panel/ActivityDetailPanel'
 import {
-  CHINA_MAP_CENTER,
-  CHINA_MAP_MAX_ZOOM,
-  CHINA_MAP_MIN_ZOOM,
-  CHINA_MAP_ZOOM,
-  TILE_LAYER_ATTRIBUTION,
-  TILE_LAYER_KEEP_BUFFER,
-  TILE_LAYER_MAX_NATIVE_ZOOM,
-  TILE_LAYER_URL,
-} from '@/lib/map'
-import { layoutActivityMarkers } from '@/lib/markerLayout'
-import type { Activity } from '@/types/activity'
-import ActivityMarker from './ActivityMarker'
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
+import ActivityFilterBar from '@/components/filters/ActivityFilterBar'
+import ActivityResultList from './ActivityResultList'
+import MemoryTimeline from './MemoryTimeline'
+import ActivityDetailPanel from '@/components/panel/ActivityDetailPanel'
 import AmapViewport from './AmapViewport'
+import {
+  selectionReducer,
+  type SelectionSource,
+  type SelectionState,
+} from '@/lib/mapSelection'
+import { useMapInsets } from '@/components/hooks/useMapInsets'
+import { useActivityLift } from '@/components/hooks/useActivityLift'
+import { usePressFeedback } from '@/components/hooks/usePressFeedback'
+import { emptyFilters, hasActiveFilters, matchesActivity, readFilters, toggleFilterValue, writeFilters, type FilterKey, type Filters } from '@/lib/activityFilters'
+import type { Activity } from '@/types/activity'
 
-type FullscreenMapProps = {
-  activities: Activity[]
-}
-
-type MapViewportProps = {
-  activities: Activity[]
-  selectedActivity: Activity | null
-  selectedActivityId: string | null
-  onSelect: (activity: Activity) => void
-}
-
-type MapFocusControllerProps = {
-  selectedActivity: Activity | null
-}
-
-type NoticeOverlayProps = {
-  title: string
-  description: string
-}
-
-const ALL_OPTION = 'all'
-const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)'
-const TIMELINE_PANEL_DELAY_MS = 110
-
-const getLatestActivityId = (activities: Activity[]) => {
-  let latestActivity: Activity | null = null
-  for (const activity of activities) {
-    if (
-      !latestActivity ||
-      activity.date > latestActivity.date ||
-      (activity.date === latestActivity.date && activity.id > latestActivity.id)
-    ) {
-      latestActivity = activity
-    }
-  }
-  return latestActivity?.id ?? null
-}
-
-const setOptionalQueryParam = (params: URLSearchParams, key: string, value: string) => {
-  const normalizedValue = value.trim()
-  if (normalizedValue.length === 0 || normalizedValue === ALL_OPTION) {
-    params.delete(key)
-    return
-  }
-  params.set(key, normalizedValue)
-}
-
-function NoticeOverlay({ title, description }: NoticeOverlayProps) {
-  return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(132px+env(safe-area-inset-bottom))] z-[420] flex justify-center px-4 md:bottom-[116px]">
-      <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-orange-200/80 bg-[#fffaf5]/95 px-4 py-3 text-center shadow-[0_14px_38px_rgba(124,45,18,0.15)] backdrop-blur-md">
-        <p className="text-sm font-extrabold text-slate-950">{title}</p>
-        <p className="mt-1 text-xs text-slate-500">{description}</p>
-      </div>
-    </div>
-  )
-}
-
-function InvalidQueryNotice({ compactTop }: { compactTop: boolean }) {
-  return (
-    <div
-      className={`pointer-events-none absolute inset-x-0 z-[425] flex justify-center px-4 ${
-        compactTop ? 'top-[104px] md:top-[112px]' : 'top-[310px] md:top-[152px]'
-      }`}
-    >
-      <div className="pointer-events-auto rounded-xl border border-orange-300 bg-orange-50/95 px-3.5 py-2.5 text-xs font-semibold text-orange-900 shadow-sm backdrop-blur-md">
-        URL 中的活动参数无效，已忽略该活动。
-      </div>
-    </div>
-  )
-}
-
-function MapFocusController({ selectedActivity }: MapFocusControllerProps) {
-  const map = useMap()
-  const lastFocusedIdRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!selectedActivity) {
-      lastFocusedIdRef.current = null
-      return
-    }
-
-    if (lastFocusedIdRef.current === selectedActivity.id) {
-      return
-    }
-
-    lastFocusedIdRef.current = selectedActivity.id
-
-    const currentZoom = map.getZoom()
-    const targetZoom = currentZoom < 6 ? 6 : currentZoom
-
-    map.flyTo([selectedActivity.latitude, selectedActivity.longitude], targetZoom, {
-      animate: true,
-      duration: 0.55,
-      easeLinearity: 0.25,
-      noMoveStart: true,
-    })
-  }, [map, selectedActivity])
-
-  return null
-}
-
-const MapViewport = memo(function MapViewport({
+export default function FullscreenMap({
   activities,
-  selectedActivity,
-  selectedActivityId,
-  onSelect,
-}: MapViewportProps) {
-  const markerLayouts = useMemo(() => layoutActivityMarkers(activities), [activities])
-
-  return (
-    <MapContainer
-      center={CHINA_MAP_CENTER}
-      zoom={CHINA_MAP_ZOOM}
-      minZoom={CHINA_MAP_MIN_ZOOM}
-      maxZoom={CHINA_MAP_MAX_ZOOM}
-      zoomControl={false}
-      scrollWheelZoom
-      zoomAnimation
-      fadeAnimation
-      markerZoomAnimation
-      inertia
-      inertiaDeceleration={2800}
-      easeLinearity={0.2}
-      zoomSnap={0.25}
-      zoomDelta={0.5}
-      wheelDebounceTime={45}
-      wheelPxPerZoomLevel={80}
-      className="h-full w-full"
-    >
-      <TileLayer
-        attribution={TILE_LAYER_ATTRIBUTION}
-        url={TILE_LAYER_URL}
-        updateWhenIdle={false}
-        updateWhenZooming
-        updateInterval={120}
-        detectRetina={false}
-        keepBuffer={TILE_LAYER_KEEP_BUFFER}
-        maxNativeZoom={TILE_LAYER_MAX_NATIVE_ZOOM}
-      />
-      <ZoomControl position="bottomright" />
-
-      {markerLayouts.map(({ activity, offset }) => (
-        <ActivityMarker
-          key={activity.id}
-          activity={activity}
-          offset={offset}
-          isSelected={selectedActivityId === activity.id}
-          onSelect={onSelect}
-        />
-      ))}
-
-      <MapFocusController selectedActivity={selectedActivity} />
-    </MapContainer>
-  )
-})
-
-export default function FullscreenMap({ activities }: FullscreenMapProps) {
-  const router = useRouter()
+}: {
+  activities: Activity[]
+}) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null)
-  const [isPanelOpen, setIsPanelOpen] = useState(false)
-  const [cityFilter, setCityFilter] = useState<string>(() => searchParams.get('city') ?? ALL_OPTION)
-  const [yearFilter, setYearFilter] = useState<string>(() => searchParams.get('year') ?? ALL_OPTION)
-  const [eventTypeFilter, setEventTypeFilter] = useState<string>(() => searchParams.get('type') ?? ALL_OPTION)
-  const [memberFilter, setMemberFilter] = useState<string>(() => searchParams.get('member') ?? ALL_OPTION)
-  const [searchKeyword, setSearchKeyword] = useState<string>(() => searchParams.get('q') ?? '')
-  const [invalidActivityParam, setInvalidActivityParam] = useState(false)
-  const [isFilterCollapsed, setIsFilterCollapsed] = useState(false)
-  const [isFilterHidden, setIsFilterHidden] = useState(false)
-  const [isActivityListOpen, setIsActivityListOpen] = useState(false)
-  const [timelineCursorId, setTimelineCursorId] = useState<string | null>(() =>
-    getLatestActivityId(activities)
+  const query = searchParams.toString()
+  const options = useMemo(
+    () => ({
+      city: [...new Set(activities.map((a) => a.city))].sort(),
+      year: [...new Set(activities.map((a) => String(a.year)))]
+        .sort()
+        .reverse(),
+      type: [...new Set(activities.map((a) => a.eventType))].sort(),
+      member: [...new Set(activities.flatMap((a) => a.members))].sort(),
+    }),
+    [activities],
   )
+  const [filters, setFilters] = useState(() =>
+    readFilters(new URLSearchParams(query), options),
+  )
+  const [selection, dispatch] = useReducer(
+    selectionReducer,
+    null,
+    (): SelectionState => {
+      const id = new URLSearchParams(query).get('activity')
+      const valid = activities.some((a) => a.id === id && matchesActivity(a, filters))
+      return {
+        activityId: valid ? id : null,
+        panel: valid ? 'detail' : 'closed',
+        source: 'url',
+        revision: 0,
+        returnToList: false,
+      }
+    },
+  )
+  const [sheet, setSheet] = useState<'summary' | 'half' | 'full'>('half')
+  const [isDesktop, setIsDesktop] = useState(false)
   const [fitAllRequest, setFitAllRequest] = useState(0)
-  const [focusSelectedRequest, setFocusSelectedRequest] = useState(0)
-  const activityQueryFrameRef = useRef<number | null>(null)
-  const panelOpenTimeoutRef = useRef<number | null>(null)
-  const delayedPanelActivityIdRef = useRef<string | null>(null)
-
-  const selectedActivityId = useMemo(() => selectedActivity?.id ?? null, [selectedActivity])
-
-  const activitiesById = useMemo(() => new Map(activities.map((activity) => [activity.id, activity])), [activities])
+  const [focusRequest, setFocusRequest] = useState(0)
+  const root = useRef<HTMLDivElement>(null)
+  const liftActivity = useActivityLift(root)
+  usePressFeedback(root)
+  const lastWritten = useRef(query)
+  const pendingUrl = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const localChange = useRef(false)
+  const [urlRevision, setUrlRevision] = useState(0)
+  const [invalidQuery, setInvalidQuery] = useState(
+    () =>
+      Boolean(searchParams.get('activity')) &&
+      !activities.some((a) => a.id === searchParams.get('activity')),
+  )
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia(MOBILE_VIEWPORT_QUERY)
-
-    const applyMobileDefault = () => {
-      if (mediaQuery.matches) {
-        setIsFilterCollapsed(true)
-      }
-    }
-
-    applyMobileDefault()
-
-    mediaQuery.addEventListener('change', applyMobileDefault)
-    return () => {
-      mediaQuery.removeEventListener('change', applyMobileDefault)
-    }
+    const media = window.matchMedia('(min-width: 1024px)')
+    const update = () => setIsDesktop(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
   }, [])
 
-  const cityOptions = useMemo(
-    () => Array.from(new Set(activities.map((activity) => activity.city))).sort((a, b) => a.localeCompare(b)),
-    [activities]
+  const filtered = useMemo(
+    () => activities.filter((a) => matchesActivity(a, filters)),
+    [activities, filters],
   )
-
-  const yearOptions = useMemo(
-    () => Array.from(new Set(activities.map((activity) => activity.year))).sort((a, b) => b - a),
-    [activities]
-  )
-
-  const eventTypeOptions = useMemo(
+  const sorted = useMemo(
     () =>
-      Array.from(new Set(activities.map((activity) => activity.eventType))).sort((a, b) =>
-        a.localeCompare(b)
+      [...filtered].sort(
+        (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
       ),
-    [activities]
+    [filtered],
+  )
+  const selected = activities.find((a) => a.id === selection.activityId) ?? null
+  const index = sorted.findIndex((a) => a.id === selection.activityId)
+  const panelOpen = selection.panel === 'detail'
+  const insets = useMapInsets(
+    root,
+    `${selection.panel}-${sheet}-${isDesktop}-${JSON.stringify(filters)}`,
   )
 
-  const memberOptions = useMemo(
-    () =>
-      Array.from(new Set(activities.flatMap((activity) => activity.members))).sort((a, b) =>
-        a.localeCompare(b)
-      ),
-    [activities]
-  )
-
-  const filteredActivities = useMemo(() => {
-    const keyword = searchKeyword.trim().toLowerCase()
-
-    return activities.filter((activity) => {
-      if (cityFilter !== ALL_OPTION && activity.city !== cityFilter) {
-        return false
-      }
-
-      if (yearFilter !== ALL_OPTION && String(activity.year) !== yearFilter) {
-        return false
-      }
-
-      if (eventTypeFilter !== ALL_OPTION && activity.eventType !== eventTypeFilter) {
-        return false
-      }
-
-      if (memberFilter !== ALL_OPTION && !activity.members.includes(memberFilter)) {
-        return false
-      }
-
-      if (keyword.length > 0) {
-        const text = `${activity.title} ${activity.city} ${activity.venue}`.toLowerCase()
-        if (!text.includes(keyword)) {
-          return false
-        }
-      }
-
-      return true
+  // Only external URL changes restore/open a panel. Our own writes must not reopen a closed sheet.
+  useEffect(() => {
+    if (query === lastWritten.current) return
+    if (pendingUrl.current) clearTimeout(pendingUrl.current)
+    localChange.current = false
+    lastWritten.current = query
+    const params = new URLSearchParams(query)
+    const next = readFilters(params, options)
+    const id = params.get('activity')
+    setFilters(next)
+    dispatch({
+      type: 'restore',
+      id: activities.some((a) => a.id === id && matchesActivity(a, next)) ? id : null,
     })
-  }, [activities, cityFilter, eventTypeFilter, memberFilter, searchKeyword, yearFilter])
-
-  const filteredActivityIdSet = useMemo(
-    () => new Set(filteredActivities.map((activity) => activity.id)),
-    [filteredActivities]
-  )
-
-  const sortedFilteredActivities = useMemo(
-    () =>
-      [...filteredActivities].sort((left, right) => {
-        const byDate = left.date.localeCompare(right.date)
-        return byDate === 0 ? left.id.localeCompare(right.id) : byDate
-      }),
-    [filteredActivities]
-  )
-
-  const activeCriteriaCount = useMemo(() => {
-    let count = 0
-    if (cityFilter !== ALL_OPTION) count += 1
-    if (yearFilter !== ALL_OPTION) count += 1
-    if (eventTypeFilter !== ALL_OPTION) count += 1
-    if (memberFilter !== ALL_OPTION) count += 1
-    if (searchKeyword.trim().length > 0) count += 1
-    return count
-  }, [cityFilter, eventTypeFilter, memberFilter, searchKeyword, yearFilter])
-
-  const hasActiveCriteria = activeCriteriaCount > 0
-
-  const replaceQuery = useCallback(
-    (mutateParams: (params: URLSearchParams) => void) => {
-      const params =
-        typeof window === 'undefined'
-          ? new URLSearchParams()
-          : new URLSearchParams(window.location.search)
-
-      mutateParams(params)
-
-      const query = params.toString()
-      const next = query ? `${pathname}?${query}` : pathname
-      const current =
-        typeof window === 'undefined'
-          ? pathname
-          : `${window.location.pathname}${window.location.search}`
-
-      if (current !== next) {
-        router.replace(next, { scroll: false })
-      }
-    },
-    [pathname, router]
-  )
-
-  const updateActivityQuery = useCallback(
-    (activityId: string | null) => {
-      if (activityQueryFrameRef.current !== null) {
-        window.cancelAnimationFrame(activityQueryFrameRef.current)
-      }
-
-      activityQueryFrameRef.current = window.requestAnimationFrame(() => {
-        activityQueryFrameRef.current = null
-
-        startTransition(() => {
-          replaceQuery((params) => {
-            if (activityId) {
-              params.set('activity', activityId)
-              return
-            }
-            params.delete('activity')
-          })
-        })
-      })
-    },
-    [replaceQuery]
-  )
-
-  useEffect(
-    () => () => {
-      if (activityQueryFrameRef.current !== null) {
-        window.cancelAnimationFrame(activityQueryFrameRef.current)
-        activityQueryFrameRef.current = null
-      }
-      if (panelOpenTimeoutRef.current !== null) {
-        window.clearTimeout(panelOpenTimeoutRef.current)
-        panelOpenTimeoutRef.current = null
-      }
-    },
-    []
-  )
-
-  const commitActivitySelection = useCallback(
-    (activity: Activity, options: { focusMap: boolean; delayPanel: boolean }) => {
-      if (panelOpenTimeoutRef.current !== null) {
-        window.clearTimeout(panelOpenTimeoutRef.current)
-        panelOpenTimeoutRef.current = null
-      }
-
-      setSelectedActivity(activity)
-      setTimelineCursorId(activity.id)
-      setIsActivityListOpen(false)
-      setInvalidActivityParam(false)
-
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      if (options.delayPanel && !reduceMotion) {
-        delayedPanelActivityIdRef.current = activity.id
-        setIsPanelOpen(false)
-        panelOpenTimeoutRef.current = window.setTimeout(() => {
-          delayedPanelActivityIdRef.current = null
-          panelOpenTimeoutRef.current = null
-          setIsPanelOpen(true)
-        }, TIMELINE_PANEL_DELAY_MS)
-      } else {
-        delayedPanelActivityIdRef.current = null
-        setIsPanelOpen(true)
-      }
-
-      if (window.matchMedia(MOBILE_VIEWPORT_QUERY).matches) {
-        setIsFilterCollapsed(true)
-      }
-      if (options.focusMap) {
-        setFocusSelectedRequest((value) => value + 1)
-      }
-      updateActivityQuery(activity.id)
-    },
-    [updateActivityQuery]
-  )
-
-  const handleSelectActivity = useCallback(
-    (activity: Activity) => {
-      commitActivitySelection(activity, { focusMap: false, delayPanel: false })
-    },
-    [commitActivitySelection]
-  )
-
-  const handleSelectTimelineActivity = useCallback(
-    (activity: Activity) => {
-      commitActivitySelection(activity, { focusMap: true, delayPanel: !isPanelOpen })
-    },
-    [commitActivitySelection, isPanelOpen]
-  )
-
-  const handleSelectAdjacentActivity = useCallback(
-    (activity: Activity) => {
-      commitActivitySelection(activity, { focusMap: true, delayPanel: false })
-    },
-    [commitActivitySelection]
-  )
-
-  const handleClosePanel = useCallback(() => {
-    if (activityQueryFrameRef.current !== null) {
-      window.cancelAnimationFrame(activityQueryFrameRef.current)
-      activityQueryFrameRef.current = null
-    }
-
-    if (panelOpenTimeoutRef.current !== null) {
-      window.clearTimeout(panelOpenTimeoutRef.current)
-      panelOpenTimeoutRef.current = null
-    }
-    delayedPanelActivityIdRef.current = null
-
-    setSelectedActivity(null)
-    setIsPanelOpen(false)
-    setInvalidActivityParam(false)
-
-    const params = new URLSearchParams(window.location.search)
-    params.delete('activity')
-    const query = params.toString()
-    window.history.replaceState(window.history.state, '', query ? `${pathname}?${query}` : pathname)
-  }, [pathname])
-
-  const handleResetTimeline = useCallback(() => {
-    if (panelOpenTimeoutRef.current !== null) {
-      window.clearTimeout(panelOpenTimeoutRef.current)
-      panelOpenTimeoutRef.current = null
-    }
-    delayedPanelActivityIdRef.current = null
-    setTimelineCursorId(null)
-    setSelectedActivity(null)
-    setIsPanelOpen(false)
-    setIsActivityListOpen(false)
-    setInvalidActivityParam(false)
-    updateActivityQuery(null)
-    setFitAllRequest((value) => value + 1)
-  }, [updateActivityQuery])
-
-  const handleFocusSelectedActivity = useCallback(() => {
-    setFocusSelectedRequest((value) => value + 1)
-  }, [])
-
-  const handleToggleActivityList = useCallback(() => {
-    setIsActivityListOpen((value) => !value)
-    setIsFilterCollapsed(true)
-  }, [])
-
-  const handleCloseActivityList = useCallback(() => {
-    setIsActivityListOpen(false)
-  }, [])
-
-  const handleSelectActivityFromList = useCallback(
-    (activity: Activity) => {
-      commitActivitySelection(activity, { focusMap: true, delayPanel: false })
-    },
-    [commitActivitySelection]
-  )
-
-  const handleClearFilters = useCallback(() => {
-    setCityFilter(ALL_OPTION)
-    setYearFilter(ALL_OPTION)
-    setEventTypeFilter(ALL_OPTION)
-    setMemberFilter(ALL_OPTION)
-    setSearchKeyword('')
-  }, [])
-
-  const handleToggleFilterCollapsed = useCallback(() => {
-    setIsFilterCollapsed((previous) => !previous)
-    setIsActivityListOpen(false)
-  }, [])
-
-  const handleHideFilterBar = useCallback(() => {
-    setIsFilterHidden(true)
-  }, [])
-
-  const handleShowFilterBar = useCallback(() => {
-    setIsFilterHidden(false)
-    if (isActivityListOpen) {
-      setIsFilterCollapsed(true)
-    }
-  }, [isActivityListOpen])
-
-  const activityParam = searchParams.get('activity')
+    setInvalidQuery(Boolean(id) && !activities.some((a) => a.id === id))
+    setSheet('half')
+    setFitAllRequest((v) => v + 1)
+  }, [query, activities, options])
 
   useEffect(() => {
-    if (cityFilter !== ALL_OPTION && !cityOptions.includes(cityFilter)) {
-      setCityFilter(ALL_OPTION)
-    }
-  }, [cityFilter, cityOptions])
-
-  useEffect(() => {
-    if (yearFilter !== ALL_OPTION && !yearOptions.some((year) => String(year) === yearFilter)) {
-      setYearFilter(ALL_OPTION)
-    }
-  }, [yearFilter, yearOptions])
-
-  useEffect(() => {
-    if (eventTypeFilter !== ALL_OPTION && !eventTypeOptions.includes(eventTypeFilter)) {
-      setEventTypeFilter(ALL_OPTION)
-    }
-  }, [eventTypeFilter, eventTypeOptions])
-
-  useEffect(() => {
-    if (memberFilter !== ALL_OPTION && !memberOptions.includes(memberFilter)) {
-      setMemberFilter(ALL_OPTION)
-    }
-  }, [memberFilter, memberOptions])
-
-  useEffect(() => {
-    replaceQuery((params) => {
-      setOptionalQueryParam(params, 'city', cityFilter)
-      setOptionalQueryParam(params, 'year', yearFilter)
-      setOptionalQueryParam(params, 'type', eventTypeFilter)
-      setOptionalQueryParam(params, 'member', memberFilter)
-      setOptionalQueryParam(params, 'q', searchKeyword)
-    })
-  }, [cityFilter, eventTypeFilter, memberFilter, replaceQuery, searchKeyword, yearFilter])
-
-  useEffect(() => {
-    if (activities.length === 0) {
-      setSelectedActivity(null)
-      setIsPanelOpen(false)
-      setTimelineCursorId(null)
-      return
-    }
-
-    if (!activityParam) {
-      setInvalidActivityParam(false)
-      return
-    }
-
-    const matchedActivity = activitiesById.get(activityParam)
-
-    if (!matchedActivity) {
-      setInvalidActivityParam(true)
-      setSelectedActivity(null)
-      setIsPanelOpen(false)
-      return
-    }
-
-    setInvalidActivityParam(false)
-
-    if (!filteredActivityIdSet.has(matchedActivity.id)) {
-      setSelectedActivity(null)
-      setIsPanelOpen(false)
-      updateActivityQuery(null)
-      return
-    }
-
-    setTimelineCursorId(matchedActivity.id)
-    setSelectedActivity((previous) => (previous?.id === matchedActivity.id ? previous : matchedActivity))
-    setIsActivityListOpen(false)
-    if (delayedPanelActivityIdRef.current !== matchedActivity.id) {
-      setIsPanelOpen(true)
-    }
-  }, [activities.length, activitiesById, activityParam, filteredActivityIdSet, updateActivityQuery])
-
-  useEffect(() => {
-    if (!selectedActivity) {
-      return
-    }
-
-    if (!filteredActivityIdSet.has(selectedActivity.id)) {
-      handleClosePanel()
-    }
-  }, [filteredActivityIdSet, handleClosePanel, selectedActivity])
-
-  useEffect(() => {
-    if (!timelineCursorId || filteredActivityIdSet.has(timelineCursorId)) {
-      return
-    }
-
-    if (sortedFilteredActivities.length === 0) {
-      return
-    }
-
-    const previousCursorActivity = activitiesById.get(timelineCursorId)
-    if (!previousCursorActivity) {
-      setTimelineCursorId(sortedFilteredActivities[sortedFilteredActivities.length - 1].id)
-      return
-    }
-
-    const previousTimestamp = Date.parse(`${previousCursorActivity.date}T00:00:00+08:00`)
-    let nearestActivity = sortedFilteredActivities[0]
-    let nearestDistance = Math.abs(
-      Date.parse(`${nearestActivity.date}T00:00:00+08:00`) - previousTimestamp
+    if (!localChange.current) return
+    if (pendingUrl.current) clearTimeout(pendingUrl.current)
+    pendingUrl.current = setTimeout(
+      () => {
+        const params = new URLSearchParams(window.location.search)
+        writeFilters(params, filters)
+        if (selection.activityId) params.set('activity', selection.activityId)
+        else params.delete('activity')
+        lastWritten.current = params.toString()
+        window.history.replaceState(
+          window.history.state,
+          '',
+          `${pathname}${lastWritten.current ? `?${lastWritten.current}` : ''}`,
+        )
+        pendingUrl.current = null
+      },
+      JSON.stringify(filters) !== JSON.stringify(readFilters(new URLSearchParams(lastWritten.current), options)) ? 250 : 0,
     )
+    return () => {
+      if (pendingUrl.current) clearTimeout(pendingUrl.current)
+    }
+  }, [
+    filters,
+    selection.activityId,
+    selection.revision,
+    selection.source,
+    pathname,
+    options,
+    urlRevision,
+  ])
 
-    sortedFilteredActivities.slice(1).forEach((activity) => {
-      const distance = Math.abs(
-        Date.parse(`${activity.date}T00:00:00+08:00`) - previousTimestamp
-      )
-      if (distance < nearestDistance) {
-        nearestActivity = activity
-        nearestDistance = distance
-      }
+  const applyFilters = (next: Filters) => {
+    localChange.current = true
+    setFilters(next)
+    dispatch({
+      type: 'filter',
+      validIds: activities.filter((a) => matchesActivity(a, next)).map((a) => a.id),
     })
-
-    setTimelineCursorId(nearestActivity.id)
-  }, [activitiesById, filteredActivityIdSet, sortedFilteredActivities, timelineCursorId])
-
-  const isActivityListVisible = isActivityListOpen && !isPanelOpen
-  const shouldUseCompactNoticeTop = isPanelOpen || isFilterHidden || isFilterCollapsed
-  const selectedTimelineIndex = selectedActivity
-    ? sortedFilteredActivities.findIndex((activity) => activity.id === selectedActivity.id)
-    : -1
-  const previousDetailActivity =
-    selectedTimelineIndex > 0 ? sortedFilteredActivities[selectedTimelineIndex - 1] : null
-  const nextDetailActivity =
-    selectedTimelineIndex >= 0 && selectedTimelineIndex < sortedFilteredActivities.length - 1
-      ? sortedFilteredActivities[selectedTimelineIndex + 1]
-      : null
-
+    setFitAllRequest((v) => v + 1)
+    setInvalidQuery(false)
+  }
+  const toggleFilter = (key: FilterKey, value: string) =>
+    applyFilters({ ...filters, [key]: toggleFilterValue(filters[key], value, options[key]) })
+  const clearFilters = () => {
+    localChange.current = true
+    setFilters(emptyFilters)
+    setFitAllRequest((v) => v + 1)
+  }
+  const select = useCallback(
+    (activity: Activity, source: SelectionSource) => {
+      localChange.current = true
+      dispatch({ type: 'select', id: activity.id, source })
+      setInvalidQuery(false)
+      if (selection.panel !== 'detail' && source !== 'scroll') setSheet('half')
+      setFocusRequest((v) => v + 1)
+    },
+    [selection.panel],
+  )
+  const reset = () => {
+    localChange.current = true
+    dispatch({ type: 'reset' })
+    setFitAllRequest((v) => v + 1)
+    setInvalidQuery(false)
+    setUrlRevision((v) => v + 1)
+  }
+  const fullscreen = !isDesktop && panelOpen && sheet === 'full'
+  const hasCriteria = hasActiveFilters(filters)
   return (
-    <div className="relative h-full w-full">
-      {isPanelOpen ? null : (
-        <ActivityFilterBar
-          searchKeyword={searchKeyword}
-          onSearchKeywordChange={setSearchKeyword}
-          cityFilter={cityFilter}
-          cityOptions={cityOptions}
-          onCityFilterChange={setCityFilter}
-          yearFilter={yearFilter}
-          yearOptions={yearOptions}
-          onYearFilterChange={setYearFilter}
-          eventTypeFilter={eventTypeFilter}
-          eventTypeOptions={eventTypeOptions}
-          onEventTypeFilterChange={setEventTypeFilter}
-          memberFilter={memberFilter}
-          memberOptions={memberOptions}
-          onMemberFilterChange={setMemberFilter}
-          onClearFilters={handleClearFilters}
-          isClearDisabled={!hasActiveCriteria}
-          resultCount={filteredActivities.length}
-          totalCount={activities.length}
-          activeCriteriaCount={activeCriteriaCount}
-          isCollapsed={isFilterCollapsed}
-          isHidden={isFilterHidden}
-          onToggleCollapsed={handleToggleFilterCollapsed}
-          onHide={handleHideFilterBar}
-          onShow={handleShowFilterBar}
+    <div ref={root} className="memory-map relative h-full w-full">
+      <div
+        className="absolute inset-0"
+        inert={fullscreen}
+        aria-hidden={fullscreen}
+      >
+        <AmapViewport
+          activities={filtered}
+          selectedActivity={selected}
+          selectedActivityId={selection.activityId}
+          viewportInsets={insets}
+          fitAllRequest={fitAllRequest}
+          focusSelectedRequest={focusRequest}
+          onSelect={(a) => select(a, 'marker')}
         />
-      )}
-
-      {invalidActivityParam ? <InvalidQueryNotice compactTop={shouldUseCompactNoticeTop} /> : null}
-
-      <AmapViewport
-        activities={filteredActivities}
-        selectedActivity={selectedActivity}
-        selectedActivityId={selectedActivityId}
-        fitAllRequest={fitAllRequest}
-        focusSelectedRequest={focusSelectedRequest}
-        onSelect={handleSelectActivity}
+      </div>
+      <ActivityFilterBar
+        filters={filters}
+        options={options}
+        onSearch={(value) => applyFilters({ ...filters, q: value })}
+        onToggle={toggleFilter}
+        onClear={clearFilters}
+        count={filtered.length}
+        total={activities.length}
+        panelOpen={selection.panel !== 'closed'}
+        hidden={fullscreen}
       />
-
-      <MemoryTimeline
-        activities={filteredActivities}
-        totalCount={activities.length}
-        cursorActivityId={timelineCursorId}
-        selectedActivityId={selectedActivityId}
-        isDetailOpen={isPanelOpen}
-        isListOpen={isActivityListVisible}
-        hasActiveCriteria={hasActiveCriteria}
-        onCursorChange={setTimelineCursorId}
-        onSelect={handleSelectTimelineActivity}
-        onResetAll={handleResetTimeline}
-        onClearFilters={handleClearFilters}
-        onFocusCurrent={handleFocusSelectedActivity}
-        onToggleList={handleToggleActivityList}
-      />
-
+      <div
+        inert={fullscreen}
+        aria-hidden={fullscreen}
+      >
+        <MemoryTimeline
+          activities={filtered}
+          totalCount={activities.length}
+          cursorActivityId={selection.activityId}
+          selectedActivityId={selection.activityId}
+          isDetailOpen={panelOpen}
+          isListOpen={selection.panel === 'list'}
+          hasActiveCriteria={hasCriteria}
+          onCursorChange={(id) => {
+            const a = activities.find((a) => a.id === id)
+            if (a) select(a, 'scroll')
+          }}
+          onSelect={(a) => select(a, 'timeline')}
+          onResetAll={reset}
+          onClearFilters={clearFilters}
+          onFocusCurrent={() => {
+            if (selected && !panelOpen) select(selected, 'timeline')
+            else setFocusRequest((v) => v + 1)
+          }}
+          onToggleList={() => {
+            dispatch({ type: 'list' })
+          }}
+        />
+      </div>
       <ActivityResultList
-        activities={filteredActivities}
-        selectedActivityId={selectedActivityId}
-        isOpen={isActivityListVisible}
-        onClose={handleCloseActivityList}
-        onSelect={handleSelectActivityFromList}
+        isDesktop={isDesktop}
+        activities={filtered}
+        selectedActivityId={selection.activityId}
+        isOpen={selection.panel === 'list'}
+        onClose={() => dispatch({ type: 'close' })}
+        onSelect={(a) => liftActivity(a.id, () => select(a, 'list'))}
+        onClearFilters={clearFilters}
       />
-
       <ActivityDetailPanel
-        activity={selectedActivity}
-        isOpen={isPanelOpen}
-        onClose={handleClosePanel}
+        activity={selected}
+        isOpen={panelOpen}
+        isDesktop={isDesktop}
+        sheet={sheet}
+        onSheetChange={setSheet}
+        onClose={() => dispatch({ type: 'close' })}
+        onBackToList={
+          selection.returnToList && selected
+            ? () => liftActivity(selected.id, () => dispatch({ type: 'list' }))
+            : undefined
+        }
         timelineNavigation={
-          selectedTimelineIndex >= 0
+          index >= 0
             ? {
-                currentIndex: selectedTimelineIndex + 1,
-                totalCount: sortedFilteredActivities.length,
-                previousActivity: previousDetailActivity,
-                nextActivity: nextDetailActivity,
-                onSelect: handleSelectAdjacentActivity,
-                onFocusCurrent: handleFocusSelectedActivity,
+                currentIndex: index + 1,
+                totalCount: sorted.length,
+                previousActivity: sorted[index - 1] ?? null,
+                nextActivity: sorted[index + 1] ?? null,
+                onSelect: (a) => select(a, 'adjacent'),
+                onFocusCurrent: () => setFocusRequest((v) => v + 1),
               }
             : undefined
         }
       />
-
-      {activities.length === 0 ? (
-        <NoticeOverlay title="暂无活动数据" description="请先补充活动数据后再查看地图。" />
-      ) : null}
-
-      {activities.length > 0 && filteredActivities.length === 0 ? (
-        <NoticeOverlay
-          title="没有匹配的活动"
-          description={
-            hasActiveCriteria
-              ? '当前筛选或搜索条件下暂无结果，试试清空筛选。'
-              : '当前暂无可展示的活动。'
-          }
-        />
-      ) : null}
+      {invalidQuery && (
+        <p role="status" className="map-notice">
+          链接中的活动不存在，已显示全部可用回忆。
+        </p>
+      )}
+      {!filtered.length && (
+        <div role="status" className="map-notice">
+          <p>{activities.length ? '没有匹配的活动' : '暂无活动数据'}</p>
+          {hasCriteria && (
+            <button className="memory-button mt-2" onClick={clearFilters}>
+              清空筛选
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
